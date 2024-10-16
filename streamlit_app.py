@@ -84,7 +84,7 @@ else:
 
 st.sidebar.markdown("## Upload the 'Dienstregeling'")
 
-uploaded_Dienstregeling = st.sidebar.file_uploader("",type=["xlsx", "xls"])
+uploaded_Dienstregeling = st.sidebar.file_uploader("a",type=["xlsx", "xls"])
 
 
 
