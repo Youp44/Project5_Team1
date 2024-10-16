@@ -62,3 +62,17 @@ for key, value in status.items():
         # Display a failure indicator with custom styling
         st.markdown(f'<div style="color: red;">❌ {key} status is wrong</div>', unsafe_allow_html=True)
 
+
+uploaded_file = st.file_uploader("Upload an Excel file", type=["xlsx", "xls"])
+
+# Check if a file is uploaded
+if uploaded_file is not None:
+    # Load the file into a DataFrame
+    df = pd.read_excel(uploaded_file)
+
+    # Display the contents of the Excel file in the app
+    st.write("Here's a preview of your Excel file:")
+    st.dataframe(df)
+
+    # Optionally, show the shape of the DataFrame
+    st.write(f"Shape of the DataFrame: {df.shape}")
