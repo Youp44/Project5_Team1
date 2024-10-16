@@ -64,15 +64,35 @@ for key, value in status.items():
 
 
 
-st.sidebar(st.file_uploader("Upload an Excel file", type=["xlsx", "xls"]))
+# Create a file uploader in the sidebar that accepts Excel files
+uploaded_file = st.sidebar.file_uploader("Upload the 'omloopsplanning'", type=["xlsx", "xls"])
+
 # Check if a file is uploaded
 if uploaded_file is not None:
     # Load the file into a DataFrame
     df = pd.read_excel(uploaded_file)
 
-    # Display the contents of the Excel file in the app
+    # Display the contents of the Excel file in the main app
     st.write("Here's a preview of your Excel file:")
     st.dataframe(df)
 
     # Optionally, show the shape of the DataFrame
     st.write(f"Shape of the DataFrame: {df.shape}")
+else: 
+    st.write("You didn't upload an 'Omloopsplanning'")
+
+uploaded_file = st.sidebar.file_uploader("Upload the 'Dienstregeling'", type=["xlsx", "xls"])
+
+# Check if a file is uploaded
+if uploaded_file is not None:
+    # Load the file into a DataFrame
+    df = pd.read_excel(uploaded_file)
+
+    # Display the contents of the Excel file in the main app
+    st.write("Here's a preview of your Excel file:")
+    st.dataframe(df)
+
+    # Optionally, show the shape of the DataFrame
+    st.write(f"Shape of the DataFrame: {df.shape}")
+else: 
+    st.write("You didn't upload an 'Dienstregeling'")
