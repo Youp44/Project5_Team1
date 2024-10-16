@@ -63,7 +63,7 @@ for key, value in status.items():
 # Omloopsplanning, maar kunnen we wel groot genoege bestanden uploaden?
 st.sidebar.markdown("## Upload the 'Omloopsplanning'")
 
-uploaded_Omloopsplanning = st.sidebar.file_uploader("",type=["xlsx", "xls"])
+uploaded_Omloopsplanning = st.sidebar.file_uploader("Omloopsplanning",type=["xlsx", "xls"])
 
 # Check if a file is uploaded
 if uploaded_Omloopsplanning is not None:
@@ -84,7 +84,7 @@ else:
 
 st.sidebar.markdown("## Upload the 'Dienstregeling'")
 
-uploaded_Dienstregeling = st.sidebar.file_uploader("a",type=["xlsx", "xls"])
+uploaded_Dienstregeling = st.sidebar.file_uploader("Dienstregeling",type=["xlsx", "xls"])
 
 
 
