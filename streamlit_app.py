@@ -61,14 +61,14 @@ import streamlit as st
 Bus ="good"
 Omloop = 'good'
 Rit = "good"
-status = ['Bus', 'Omloop', 'Rit']
-for i in len(status):
-    if i == "good":
+status ={'Bus', 'Omloop', 'Rit'}
+for key, value in status.items():
+    if value == "good":
         # Display a success indicator with custom styling
-        st.markdown('<div style="color: green;">✅️ Status is good</div>', unsafe_allow_html=True)
-    elif i == "improve":
+        st.markdown(f'<div style="color: green;">✅️ {key} status is good</div>', unsafe_allow_html=True)
+    elif value == "improve":
         # Display an improvement indicator with custom styling
-        st.markdown('<div style="color: orange;">🔶 Status can be improved</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="color: orange;">🔶 {key} status can be improved</div>', unsafe_allow_html=True)
     else:
         # Display a failure indicator with custom styling
-        st.markdown('<div style="color: red;">❌ Status is wrong</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="color: red;">❌ {key} status is wrong</div>', unsafe_allow_html=True)
