@@ -58,20 +58,15 @@ import streamlit as st
 # als je hier een loop van maakt voor je drie functie.
 # Zo kan je Status I maken in een list met de correcte namen, 
 # En het algemeen maken door de termen good en improve gebruiken 
-# Define the statuses
-Bus = "good"
+Bus ="good"
 Omloop = 'good'
 Rit = "good"
-
-# Create a dictionary to map each status to its value
-status_dict = {
+status = {
     'Bus': Bus,
     'Omloop': Omloop,
     'Rit': Rit
 }
-
-# Loop through the status dictionary and display the appropriate message
-for key, value in status_dict.items():
+for key, value in status.items():
     if value == "good":
         # Display a success indicator with custom styling
         st.markdown(f'<div style="color: green;">✅️ {key} status is good</div>', unsafe_allow_html=True)
@@ -81,3 +76,4 @@ for key, value in status_dict.items():
     else:
         # Display a failure indicator with custom styling
         st.markdown(f'<div style="color: red;">❌ {key} status is wrong</div>', unsafe_allow_html=True)
+
