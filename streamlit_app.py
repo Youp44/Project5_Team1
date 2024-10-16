@@ -55,11 +55,20 @@ for i in range(100):
 
 import streamlit as st
 
-status = "x"  # This could be any condition in your app
-
-if status == "x":
-    # Display a success indicator with custom styling
-    st.markdown('<div style="color: green;">✅️ Status is x</div>', unsafe_allow_html=True)
-else:
-    # Display a failure indicator with custom styling
-    st.markdown('<div style="color: red;">❌ Status is not x</div>', unsafe_allow_html=True)
+# als je hier een loop van maakt voor je drie functie.
+# Zo kan je Status I maken in een list met de correcte namen, 
+# En het algemeen maken door de termen good en improve gebruiken 
+Bus ="good"
+Omloop = 'good'
+Rit = "good"
+status = ['Bus', 'Omloop', 'Rit']
+for i in len(status):
+    if i == "good":
+        # Display a success indicator with custom styling
+        st.markdown('<div style="color: green;">✅️ Status is good</div>', unsafe_allow_html=True)
+    elif i == "improve":
+        # Display an improvement indicator with custom styling
+        st.markdown('<div style="color: orange;">🔶 Status can be improved</div>', unsafe_allow_html=True)
+    else:
+        # Display a failure indicator with custom styling
+        st.markdown('<div style="color: red;">❌ Status is wrong</div>', unsafe_allow_html=True)
