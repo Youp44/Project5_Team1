@@ -24,11 +24,7 @@ dataframe = pd.DataFrame(
     np.random.randn(10, 20),
     columns=('col %d' % i for i in range(20)))
 st.table(dataframe)
-# Add a selectbox to the sidebar:
-add_selectbox = st.sidebar.selectbox(
-    'How would you like to be contacted?',
-    ('Email', 'Home phone', 'Mobile phone')
-)
+
 
 import streamlit as st
 
@@ -64,13 +60,15 @@ for key, value in status.items():
 
 
 
-# Create a file uploader in the sidebar that accepts Excel files
-uploaded_file = st.sidebar.file_uploader("Upload the 'omloopsplanning'", type=["xlsx", "xls"])
+# Omloopsplanning, maar kunnen we wel groot genoege bestanden uploaden?
+st.sidebar.markdown("# Upload the 'omloopsplanning'")
+
+uploaded_Omloopsplanning = st.sidebar.file_uploader("",type=["xlsx", "xls"])
 
 # Check if a file is uploaded
-if uploaded_file is not None:
+if uploaded_Omloopsplanning is not None:
     # Load the file into a DataFrame
-    df = pd.read_excel(uploaded_file)
+    df = pd.read_excel(uploaded_Omloopsplanning)
 
     # Display the contents of the Excel file in the main app
     st.write("Here's a preview of your Excel file:")
@@ -81,15 +79,18 @@ if uploaded_file is not None:
 else: 
     st.write("You didn't upload an 'Omloopsplanning'")
 
-uploaded_file = st.sidebar.file_uploader("Upload the 'Dienstregeling'", type=["xlsx", "xls"])
+
+#Dienstregeling
+
+uploaded_Dienstregeling = st.sidebar.file_uploader("Upload the 'Dienstregeling'", type=["xlsx", "xls"])
 
 # Check if a file is uploaded
-if uploaded_file is not None:
+if uploaded_Dienstregeling is not None:
     # Load the file into a DataFrame
-    df = pd.read_excel(uploaded_file)
+    df = pd.read_excel(uploaded_Dienstregeling)
 
     # Display the contents of the Excel file in the main app
-    st.write("Here's a preview of your Excel file:")
+    st.write("Here's a preview of your Dienstregeling file:")
     st.dataframe(df)
 
     # Optionally, show the shape of the DataFrame
