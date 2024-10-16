@@ -61,7 +61,7 @@ for key, value in status.items():
 
 
 # Omloopsplanning, maar kunnen we wel groot genoege bestanden uploaden?
-st.sidebar.markdown("# Upload the 'omloopsplanning'")
+st.sidebar.markdown("## Upload the 'omloopsplanning'")
 
 uploaded_Omloopsplanning = st.sidebar.file_uploader("",type=["xlsx", "xls"])
 
