@@ -64,7 +64,7 @@ for key, value in status.items():
 
 
 uploaded_file = st.file_uploader("Upload an Excel file", type=["xlsx", "xls"])
-
+st.sidebar(uploaded_file)
 # Check if a file is uploaded
 if uploaded_file is not None:
     # Load the file into a DataFrame
