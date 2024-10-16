@@ -93,4 +93,9 @@ st.markdown("<hr>", unsafe_allow_html=True)
 st.markdown('# Verbeterde versie')
 
 
-st.image(r"C:\Users\Youpk\Desktop\Transdev_foto.jpg", caption="Dit is de Transdev afbeelding.", use_column_width=True)
+uploaded_file = st.file_uploader("Upload een afbeelding", type=["jpg", "jpeg", "png"])
+
+# Controleer of een bestand is geüpload
+if uploaded_file is not None:
+    # Toon de afbeelding
+    st.image(uploaded_file, caption="Dit is de geüploade afbeelding.", use_column_width=True)
