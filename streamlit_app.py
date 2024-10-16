@@ -1,6 +1,6 @@
 import streamlit as st
 
-st.title("Waarom is dit rood ")
+st.title("Project 5 Omloopsplanning ")
 
 st.write("""
          Ik baal van me leven
