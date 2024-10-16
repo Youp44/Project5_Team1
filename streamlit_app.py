@@ -87,15 +87,15 @@ if uploaded_Dienstregeling is not None:
 else: 
     st.write("You didn't upload an 'Dienstregeling'")
     
+# en kunnen we alle delen niet in van die blokken plaats 
+# word bijv bovenste blok groen als alles voldoet
+
+
 st.markdown("<hr>", unsafe_allow_html=True)
 st.markdown('# Uitleg fout')
+# hier onder dan ff de uitleg van waar de fout zit met een drop down df wss per bolletje 
 st.markdown("<hr>", unsafe_allow_html=True)
 st.markdown('# Verbeterde versie')
+#output excel file, dit is voor later
 
-
-uploaded_file = st.file_uploader("Upload een afbeelding", type=["jpg", "jpeg", "png"])
-
-# Controleer of een bestand is geüpload
-if uploaded_file is not None:
-    # Toon de afbeelding
-    st.image(uploaded_file, caption="Dit is de geüploade afbeelding.", use_column_width=True)
+# heb foto geprobeerd te uplaoden dit is echt poep
