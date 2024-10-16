@@ -4,37 +4,6 @@ import numpy as np
 
 
 st.title("Project 5 Omloopsplanning ")
-df = (pd.DataFrame({
-    'first column': [1, 2, 3, 4],
-    'second column': [10, 20, 30, 40]
-}))
-#of gewoon met normale df 
-df
-st.table(df)
-
-dataframe = pd.DataFrame(
-    np.random.randn(10, 20),
-    columns=('col %d' % i for i in range(20)))
-
-st.dataframe(dataframe.style.highlight_max(axis=0))
-# dit werkt dus voor correlatie
-
-
-dataframe = pd.DataFrame(
-    np.random.randn(10, 20),
-    columns=('col %d' % i for i in range(20)))
-st.table(dataframe)
-
-
-import streamlit as st
-
-left_column, right_column = st.columns(2)
-# You can use a column just like st.sidebar:
-left_column.button('Press me!')
-
-
-
-
 
 # als je hier een loop van maakt voor je drie functie.
 # Zo kan je Status I maken in een list met de correcte namen, 
@@ -58,8 +27,24 @@ for key, value in status.items():
         # Display a failure indicator with custom styling
         st.markdown(f'<div style="color: red;">❌ {key} status is wrong</div>', unsafe_allow_html=True)
 
-
-
+st.markdown(
+    """
+    <div style="background-color: lightgreen; padding: 20px; border-radius: 10px;">
+        <h3 style="color: white;">This is a light green block</h3>
+        <p>This section is styled with a light green background and white text.</p>
+    </div>
+    """, 
+    unsafe_allow_html=True
+)
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown(
+    """
+    <div style="background-color: lightblue; padding: 20px; border-radius: 10px;">
+        <h3 style="color: white;">This is a light blue block</h3>
+        <p>This section is styled with a light blue background and white text.</p>
+    </div>
+    """, 
+    unsafe_allow_html=True)
 # Omloopsplanning, maar kunnen we wel groot genoege bestanden uploaden?
 st.sidebar.markdown("## Upload the 'Omloopsplanning'")
 
