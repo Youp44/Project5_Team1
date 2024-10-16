@@ -93,4 +93,4 @@ st.markdown("<hr>", unsafe_allow_html=True)
 st.markdown('# Verbeterde versie')
 
 
-st.image("C:\\Users\\Youpk\\Desktop\\Transdev_foto.jpg")
+st.image(r"C:\Users\Youpk\Desktop\Transdev_foto.jpg", caption="Dit is de Transdev afbeelding.", use_column_width=True)
