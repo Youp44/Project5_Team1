@@ -86,3 +86,12 @@ if uploaded_Dienstregeling is not None:
     st.write(f"Shape of the DataFrame: {df.shape}")
 else: 
     st.write("You didn't upload an 'Dienstregeling'")
+    
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown('# Uitleg fout')
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown('# Verbeterde versie')
+
+image_url = https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.cleanpng.com%2Fpng-transdev-business-transport-super-advice-veolia-ra-5486609%2F&psig=AOvVaw079_y6WUOs7jHob1Vi1Kt0&ust=1729174366653000&source=images&cd=vfe&opi=89978449&ved=0CBEQjRxqFwoTCPjBpNGKk4kDFQAAAAAdAAAAABAE
+
+st.image(image_url)
