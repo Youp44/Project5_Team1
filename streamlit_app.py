@@ -24,24 +24,6 @@ dataframe = pd.DataFrame(
     np.random.randn(10, 20),
     columns=('col %d' % i for i in range(20)))
 st.table(dataframe)
-
-import streamlit as st
-x = st.slider('x')  # 👈 this is a widget
-st.write(x, 'squared is', x * x)
-
-import streamlit as st
-import numpy as np
-import pandas as pd
-
-if st.checkbox('Show dataframe'):
-    chart_data = pd.DataFrame(
-       np.random.randn(20, 3),
-       columns=['a', 'b', 'c'])
-
-    chart_data
-
-    import streamlit as st
-
 # Add a selectbox to the sidebar:
 add_selectbox = st.sidebar.selectbox(
     'How would you like to be contacted?',
@@ -54,14 +36,7 @@ left_column, right_column = st.columns(2)
 # You can use a column just like st.sidebar:
 left_column.button('Press me!')
 
-# Or even better, call Streamlit functions inside a "with" block:
-with right_column:
-    chosen = st.radio(
-        'Sorting hat',
-        ("Gryffindor", "Ravenclaw", "Hufflepuff", "Slytherin"))
-    st.write(f"You are in {chosen} house!")
 
-    import streamlit as st
 import time
 
 'Starting a long computation...'
@@ -77,3 +52,14 @@ for i in range(100):
   time.sleep(0.1)
 
 '...and now we\'re done!'
+
+import streamlit as st
+
+status = "x"  # This could be any condition in your app
+
+if status == "x":
+    # Display a success indicator with custom styling
+    st.markdown('<div style="color: green;">✅️ Status is x</div>', unsafe_allow_html=True)
+else:
+    # Display a failure indicator with custom styling
+    st.markdown('<div style="color: red;">❌ Status is not x</div>', unsafe_allow_html=True)
