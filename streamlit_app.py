@@ -63,8 +63,8 @@ for key, value in status.items():
         st.markdown(f'<div style="color: red;">❌ {key} status is wrong</div>', unsafe_allow_html=True)
 
 
-uploaded_file = st.file_uploader("Upload an Excel file", type=["xlsx", "xls"])
-st.sidebar(uploaded_file)
+
+st.sidebar(st.file_uploader("Upload an Excel file", type=["xlsx", "xls"]))
 # Check if a file is uploaded
 if uploaded_file is not None:
     # Load the file into a DataFrame
