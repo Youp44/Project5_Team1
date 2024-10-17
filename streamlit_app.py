@@ -262,3 +262,4 @@ df_planning['eindtijd'] = pd.to_datetime(df_planning['eindtijd'], format='%H:%M'
 # Plot het resultaat
 plot_bus_schedule(df_planning)
 >>>>>>> 9b4d8d6caac32e1ca593603e26fb838363e2fe23
+st.markdown('# Miauw snuiven kan toch gewoon op een zaterdag ')
