@@ -99,4 +99,3 @@ st.markdown('# Verbeterde versie')
 #output excel file, dit is voor later
 
 # heb foto geprobeerd te uplaoden dit is echt poep
-st.markdown("ahha")
