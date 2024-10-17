@@ -103,7 +103,7 @@ st.markdown('# Verbeterde versie')
 
 # heb foto geprobeerd te uplaoden dit is echt poep
 
-<<<<<<< HEAD
+
 
 import pandas as pd
 
