@@ -6,6 +6,69 @@ df_planning =pd.read_excel('omloopplanning.xlsx')
 df = pd.read_excel('Connexxion data - 2024-2025.xlsx')
 df_tijden = pd.read_excel('Connexxion data - 2024-2025 - kopie.xlsx')
 
+def controleer_energieverbruik_overschrijding(df_planning, df_tijden, energieverbruik_per_km=2.5, max_verbruik=364.5):
+    def find_afstand(row, df_tijden):
+        match = df_tijden[
+            (df_tijden['startlocatie'] == row['startlocatie']) &
+            (df_tijden['eindlocatie'] == row['eindlocatie']) &
+            ((df_tijden['buslijn'] == row['buslijn']) | df_tijden['buslijn'].isna())
+        ]
+        if not match.empty:
+            return match.iloc[0]['afstand in meters']
+        else:
+            return 0
+
+    df_planning['afstand_meters'] = df_planning.apply(lambda row: find_afstand(row, df_tijden), axis=1)
+    df_planning['afstand_km'] = df_planning['afstand_meters'] / 1000
+    df_planning['energieverbruik'] = df_planning['afstand_km'] * energieverbruik_per_km
+
+    overschrijdingen = []
+
+    for omloop_nummer, omloop_data in df_planning.groupby('omloop nummer'):
+        cumulatief_verbruik = 0
+        
+        for index, row in omloop_data.iterrows():
+            cumulatief_verbruik += row['energieverbruik']
+            
+            if cumulatief_verbruik > max_verbruik:
+                overschrijdingen.append({
+                    'omloop': omloop_nummer,
+                    'tijd': row['eindtijd'],
+                    'totaal_verbruik': cumulatief_verbruik
+                })
+                break
+
+    return overschrijdingen
+
+if df_planning_file and df_tijden_file:
+    # Lees de CSV-bestanden in dataframes
+    df_planning = pd.read_csv(df_planning_file)
+    df_tijden = pd.read_csv(df_tijden_file)
+
+    # Toon de ingevoerde dataframes
+    st.subheader("Planning Data")
+    st.write(df_planning)
+    
+    st.subheader("Tijden Data")
+    st.write(df_tijden)
+
+    # Voeg invoeropties voor energieverbruik per km en max verbruik toe
+    energieverbruik_per_km = st.number_input("Energieverbruik per km (kWh)", min_value=0.1, value=2.5)
+    max_verbruik = st.number_input("Maximaal verbruik per omloop (kWh)", min_value=1.0, value=364.5)
+
+    # Knop om de berekening uit te voeren
+    if st.button("Controleer energieverbruik"):
+        # Voer de functie uit om energieverbruik te controleren
+        overschrijdingen = controleer_energieverbruik_overschrijding(df_planning, df_tijden, energieverbruik_per_km, max_verbruik)
+
+        # Resultaten tonen
+        if overschrijdingen:
+            st.subheader("Overschrijdingen")
+            for oversch in overschrijdingen:
+                tijd = oversch['tijd']
+                st.write(f"Energieverbruik overschreden in omloop {oversch['omloop']} om {tijd}, totaal verbruik: {oversch['totaal_verbruik']} kWh")
+        else:
+            st.success(f"Energieverbruik bleef onder de {max_verbruik} kWh voor alle omlopen.")
 st.title("Project 5 Omloopsplanning ")
 
 # als je hier een loop van maakt voor je drie functie.
@@ -30,24 +93,7 @@ for key, value in status.items():
         # Display a failure indicator with custom styling
         st.markdown(f'<div style="color: red;">❌ {key} status is wrong</div>', unsafe_allow_html=True)
 
-st.markdown(
-    """
-    <div style="background-color: lightgreen; padding: 20px; border-radius: 10px;">
-        <h3 style="color: white;">This is a light green block</h3>
-        <p>This section is styled with a light green background and white text.</p>
-    </div>
-    """, 
-    unsafe_allow_html=True
-)
-st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown(
-    """
-    <div style="background-color: lightblue; padding: 20px; border-radius: 10px;">
-        <h3 style="color: white;">This is a light blue block</h3>
-        <p>This section is styled with a light blue background and white text.</p>
-    </div>
-    """, 
-    unsafe_allow_html=True)
+
 # Omloopsplanning, maar kunnen we wel groot genoege bestanden uploaden?
 st.sidebar.markdown("## Upload the 'Omloopsplanning'")
 
@@ -104,6 +150,3 @@ st.markdown('# Verbeterde versie')
 # heb foto geprobeerd te uplaoden dit is echt poep
 
 
-
-
-st.markdown('# Miauw snuiven kan toch gewoon op een zaterdag ')
