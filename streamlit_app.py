@@ -1,9 +1,7 @@
 import streamlit as st
-import pandas as pd 
-import streamlit as st
+import pandas as pd
 
-
-# Plaats de functie hier
+# Definieer de functie hier
 def controleer_energieverbruik_overschrijding(df_planning, df_tijden, energieverbruik_per_km=2.5, max_verbruik=364.5):
     def find_afstand(row, df_tijden):
         match = df_tijden[
@@ -38,9 +36,7 @@ def controleer_energieverbruik_overschrijding(df_planning, df_tijden, energiever
 
     return overschrijdingen
 
-# Rest van de Streamlit code blijft hetzelfde
-
-# Titel van de applicatie
+# Hoofdcode
 st.title("Project 5 - Omloopsplanning en Dienstregeling Analyse")
 
 # Sidebar voor Omloopsplanning
@@ -51,9 +47,8 @@ uploaded_Omloopsplanning = st.sidebar.file_uploader("Omloopsplanning", type=["xl
 st.sidebar.markdown("## Upload the 'Dienstregeling'")
 uploaded_Dienstregeling = st.sidebar.file_uploader("Dienstregeling", type=["xlsx", "xls"])
 
-# Check if both files are uploaded
-if uploaded_Omloopsplanning and uploaded_Dienstregeling:
-    # Lees de bestanden in als DataFrames
+# Controleer of beide bestanden zijn geüpload
+if uploaded_Omloopsplanning is not None and uploaded_Dienstregeling is not None:
     df_planning = pd.read_excel(uploaded_Omloopsplanning)
     df_tijden = pd.read_excel(uploaded_Dienstregeling)
 
@@ -70,7 +65,6 @@ if uploaded_Omloopsplanning and uploaded_Dienstregeling:
 
     # Knop om de berekening uit te voeren
     if st.button("Controleer energieverbruik"):
-        # Functie om overschrijdingen te controleren (verondersteld dat de functie reeds gedefinieerd is)
         overschrijdingen = controleer_energieverbruik_overschrijding(df_planning, df_tijden, energieverbruik_per_km, max_verbruik)
 
         # Resultaten tonen
@@ -81,16 +75,11 @@ if uploaded_Omloopsplanning and uploaded_Dienstregeling:
                 st.write(f"Energieverbruik overschreden in omloop {oversch['omloop']} om {tijd}, totaal verbruik: {oversch['totaal_verbruik']} kWh")
         else:
             st.success(f"Energieverbruik bleef onder de {max_verbruik} kWh voor alle omlopen.")
+
+# Optioneel: toont een boodschap als een van beide bestanden niet is geüpload
 else:
-    # Als geen van beide bestanden zijn geüpload, toon een bericht
     st.write("Upload both 'Omloopsplanning' and 'Dienstregeling' to proceed.")
 
-# Optioneel: toon de shape van de DataFrames als bestanden zijn geüpload
-if uploaded_Omloopsplanning is not None:
-    st.write("Shape of the 'Omloopsplanning' DataFrame:", df_planning.shape)
-
-if uploaded_Dienstregeling is not None:
-    st.write("Shape of the 'Dienstregeling' DataFrame:", df_tijden.shape)
 # als je hier een loop van maakt voor je drie functie.
 # Zo kan je Status I maken in een list met de correcte namen, 
 # En het algemeen maken door de termen good en improve gebruiken 
