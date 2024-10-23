@@ -1,44 +1,28 @@
 import streamlit as st
 import pandas as pd 
-import numpy as np 
+from Project_5.ipynb import controleer_energieverbruik_overschrijding
 
-# Omloopsplanning, maar kunnen we wel groot genoege bestanden uploaden?
+# Titel van de applicatie
+st.title("Project 5 - Omloopsplanning en Dienstregeling Analyse")
+
+# Sidebar voor Omloopsplanning
 st.sidebar.markdown("## Upload the 'Omloopsplanning'")
+uploaded_Omloopsplanning = st.sidebar.file_uploader("Omloopsplanning", type=["xlsx", "xls"])
 
-uploaded_Omloopsplanning = st.sidebar.file_uploader("Omloopsplanning",type=["xlsx", "xls"])
-
-# Check if a file is uploaded
-if uploaded_Omloopsplanning is not None:
-    # Load the file into a DataFrame
-    df = pd.read_excel(uploaded_Omloopsplanning)
-
-    # Display the contents of the Excel file in the main app
-    st.write("Here's a preview of your Excel file:")
-    st.dataframe(df)
-
-    # Optionally, show the shape of the DataFrame
-    st.write(f"Shape of the DataFrame: {df.shape}")
-else: 
-    st.write("You didn't upload an 'Omloopsplanning'")
-
-
-#Dienstregeling
-
+# Sidebar voor Dienstregeling
 st.sidebar.markdown("## Upload the 'Dienstregeling'")
+uploaded_Dienstregeling = st.sidebar.file_uploader("Dienstregeling", type=["xlsx", "xls"])
 
-uploaded_Dienstregeling = st.sidebar.file_uploader("Dienstregeling",type=["xlsx", "xls"])
-
-
-
+# Check if both files are uploaded
 if uploaded_Omloopsplanning and uploaded_Dienstregeling:
-    # Lees de CSV-bestanden in dataframes
-    df_planning = pd.read_csv(uploaded_Omloopsplanning)
-    df_tijden = pd.read_csv(uploaded_Dienstregeling)
+    # Lees de bestanden in als DataFrames
+    df_planning = pd.read_excel(uploaded_Omloopsplanning)
+    df_tijden = pd.read_excel(uploaded_Dienstregeling)
 
-    # Toon de ingevoerde dataframes
+    # Toon de inhoud van beide bestanden
     st.subheader("Planning Data")
     st.write(df_planning)
-    
+
     st.subheader("Tijden Data")
     st.write(df_tijden)
 
@@ -48,7 +32,7 @@ if uploaded_Omloopsplanning and uploaded_Dienstregeling:
 
     # Knop om de berekening uit te voeren
     if st.button("Controleer energieverbruik"):
-        # Voer de functie uit om energieverbruik te controleren
+        # Functie om overschrijdingen te controleren (verondersteld dat de functie reeds gedefinieerd is)
         overschrijdingen = controleer_energieverbruik_overschrijding(df_planning, df_tijden, energieverbruik_per_km, max_verbruik)
 
         # Resultaten tonen
@@ -59,21 +43,16 @@ if uploaded_Omloopsplanning and uploaded_Dienstregeling:
                 st.write(f"Energieverbruik overschreden in omloop {oversch['omloop']} om {tijd}, totaal verbruik: {oversch['totaal_verbruik']} kWh")
         else:
             st.success(f"Energieverbruik bleef onder de {max_verbruik} kWh voor alle omlopen.")
-st.title("Project 5 Omloopsplanning ")
+else:
+    # Als geen van beide bestanden zijn geüpload, toon een bericht
+    st.write("Upload both 'Omloopsplanning' and 'Dienstregeling' to proceed.")
 
-# Check if a file is uploaded
+# Optioneel: toon de shape van de DataFrames als bestanden zijn geüpload
+if uploaded_Omloopsplanning is not None:
+    st.write("Shape of the 'Omloopsplanning' DataFrame:", df_planning.shape)
+
 if uploaded_Dienstregeling is not None:
-    # Load the file into a DataFrame
-    df = pd.read_excel(uploaded_Dienstregeling)
-
-    # Display the contents of the Excel file in the main app
-    st.write("Here's a preview of your Dienstregeling file:")
-    st.dataframe(df)
-
-    # Optionally, show the shape of the DataFrame
-    st.write(f"Shape of the DataFrame: {df.shape}")
-else: 
-    st.write("You didn't upload an 'Dienstregeling'")
+    st.write("Shape of the 'Dienstregeling' DataFrame:", df_tijden.shape)
 # als je hier een loop van maakt voor je drie functie.
 # Zo kan je Status I maken in een list met de correcte namen, 
 # En het algemeen maken door de termen good en improve gebruiken 
