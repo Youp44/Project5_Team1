@@ -2,7 +2,78 @@ import streamlit as st
 import pandas as pd 
 import numpy as np 
 
+# Omloopsplanning, maar kunnen we wel groot genoege bestanden uploaden?
+st.sidebar.markdown("## Upload the 'Omloopsplanning'")
 
+uploaded_Omloopsplanning = st.sidebar.file_uploader("Omloopsplanning",type=["xlsx", "xls"])
+
+# Check if a file is uploaded
+if uploaded_Omloopsplanning is not None:
+    # Load the file into a DataFrame
+    df = pd.read_excel(uploaded_Omloopsplanning)
+
+    # Display the contents of the Excel file in the main app
+    st.write("Here's a preview of your Excel file:")
+    st.dataframe(df)
+
+    # Optionally, show the shape of the DataFrame
+    st.write(f"Shape of the DataFrame: {df.shape}")
+else: 
+    st.write("You didn't upload an 'Omloopsplanning'")
+
+
+#Dienstregeling
+
+st.sidebar.markdown("## Upload the 'Dienstregeling'")
+
+uploaded_Dienstregeling = st.sidebar.file_uploader("Dienstregeling",type=["xlsx", "xls"])
+
+
+
+if uploaded_Omloopsplanning and uploaded_Dienstregeling:
+    # Lees de CSV-bestanden in dataframes
+    df_planning = pd.read_csv(uploaded_Omloopsplanning)
+    df_tijden = pd.read_csv(uploaded_Dienstregeling)
+
+    # Toon de ingevoerde dataframes
+    st.subheader("Planning Data")
+    st.write(df_planning)
+    
+    st.subheader("Tijden Data")
+    st.write(df_tijden)
+
+    # Voeg invoeropties voor energieverbruik per km en max verbruik toe
+    energieverbruik_per_km = st.number_input("Energieverbruik per km (kWh)", min_value=0.1, value=2.5)
+    max_verbruik = st.number_input("Maximaal verbruik per omloop (kWh)", min_value=1.0, value=364.5)
+
+    # Knop om de berekening uit te voeren
+    if st.button("Controleer energieverbruik"):
+        # Voer de functie uit om energieverbruik te controleren
+        overschrijdingen = controleer_energieverbruik_overschrijding(df_planning, df_tijden, energieverbruik_per_km, max_verbruik)
+
+        # Resultaten tonen
+        if overschrijdingen:
+            st.subheader("Overschrijdingen")
+            for oversch in overschrijdingen:
+                tijd = oversch['tijd']
+                st.write(f"Energieverbruik overschreden in omloop {oversch['omloop']} om {tijd}, totaal verbruik: {oversch['totaal_verbruik']} kWh")
+        else:
+            st.success(f"Energieverbruik bleef onder de {max_verbruik} kWh voor alle omlopen.")
+st.title("Project 5 Omloopsplanning ")
+
+# Check if a file is uploaded
+if uploaded_Dienstregeling is not None:
+    # Load the file into a DataFrame
+    df = pd.read_excel(uploaded_Dienstregeling)
+
+    # Display the contents of the Excel file in the main app
+    st.write("Here's a preview of your Dienstregeling file:")
+    st.dataframe(df)
+
+    # Optionally, show the shape of the DataFrame
+    st.write(f"Shape of the DataFrame: {df.shape}")
+else: 
+    st.write("You didn't upload an 'Dienstregeling'")
 # als je hier een loop van maakt voor je drie functie.
 # Zo kan je Status I maken in een list met de correcte namen, 
 # En het algemeen maken door de termen good en improve gebruiken 
