@@ -1,6 +1,44 @@
 import streamlit as st
 import pandas as pd 
-from Project_5.ipynb import controleer_energieverbruik_overschrijding
+import streamlit as st
+
+
+# Plaats de functie hier
+def controleer_energieverbruik_overschrijding(df_planning, df_tijden, energieverbruik_per_km=2.5, max_verbruik=364.5):
+    def find_afstand(row, df_tijden):
+        match = df_tijden[
+            (df_tijden['startlocatie'] == row['startlocatie']) &
+            (df_tijden['eindlocatie'] == row['eindlocatie']) &
+            ((df_tijden['buslijn'] == row['buslijn']) | df_tijden['buslijn'].isna())
+        ]
+        if not match.empty:
+            return match.iloc[0]['afstand in meters']
+        else:
+            return 0
+
+    df_planning['afstand_meters'] = df_planning.apply(lambda row: find_afstand(row, df_tijden), axis=1)
+    df_planning['afstand_km'] = df_planning['afstand_meters'] / 1000
+    df_planning['energieverbruik'] = df_planning['afstand_km'] * energieverbruik_per_km
+
+    overschrijdingen = []
+
+    for omloop_nummer, omloop_data in df_planning.groupby('omloop nummer'):
+        cumulatief_verbruik = 0
+        
+        for index, row in omloop_data.iterrows():
+            cumulatief_verbruik += row['energieverbruik']
+            
+            if cumulatief_verbruik > max_verbruik:
+                overschrijdingen.append({
+                    'omloop': omloop_nummer,
+                    'tijd': row['eindtijd'],
+                    'totaal_verbruik': cumulatief_verbruik
+                })
+                break
+
+    return overschrijdingen
+
+# Rest van de Streamlit code blijft hetzelfde
 
 # Titel van de applicatie
 st.title("Project 5 - Omloopsplanning en Dienstregeling Analyse")
