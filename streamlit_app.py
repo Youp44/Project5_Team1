@@ -15,7 +15,7 @@ uploaded_Omloopsplanning = st.sidebar.file_uploader("Omloopsplanning", type=["xl
 
 # Sidebar voor Dienstregeling
 st.sidebar.markdown("## Upload the 'Dienstregeling'")
-uploaded_Dienstregeling = st.sidebar.file_uploader("Dienstregeling", type=["xlsx", "xls"], sheet_name = sheet_names[0])
+uploaded_Dienstregeling = st.sidebar.file_uploader("Dienstregeling", type=["xlsx", "xls"])
 
 
 def controleer_energieverbruik_overschrijding(df_planning, df_tijden, energieverbruik_per_km=2.5, max_verbruik=364.5):
@@ -55,14 +55,14 @@ def controleer_energieverbruik_overschrijding(df_planning, df_tijden, energiever
 # Controleer of beide bestanden zijn geüpload
 if uploaded_Omloopsplanning is not None and uploaded_Dienstregeling is not None:
     df_planning = pd.read_excel(uploaded_Omloopsplanning)
-    df_tijden = pd.read_excel(uploaded_Dienstregeling)
-
+    df_tijden = pd.read_excel(uploaded_Dienstregeling, sheet_name=sheet_names[0])
+    df = pd.read_excel(uploaded_Dienstregeling, sheet_name=sheet_names[1])
     # Toon de inhoud van beide bestanden
     st.subheader("Planning Data")
-    st.write(df_planning)
+    df_planning
 
     st.subheader("Tijden Data")
-    st.write(df_tijden)
+    df_tijden
 
     # Voeg invoeropties voor energieverbruik per km en max verbruik toe
     energieverbruik_per_km = st.number_input("Energieverbruik per km (kWh)", min_value=0.1, value=2.5)
