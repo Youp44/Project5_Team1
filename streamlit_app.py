@@ -1,7 +1,23 @@
 import streamlit as st
 import pandas as pd
 
-# Definieer de functie hier
+sheet_names = ['Dienstregeling', 'Afstandsmatrix'] 
+
+df = pd.read_excel('Connexxion data - 2024-2025.xlsx', sheet_name = sheet_names[1])
+# hoe implementeer ik deze dan? 
+
+# Hoofdcode
+st.title("Project 5 - Omloopsplanning en Dienstregeling Analyse")
+
+# Sidebar voor Omloopsplanning
+st.sidebar.markdown("## Upload the 'Omloopsplanning'")
+uploaded_Omloopsplanning = st.sidebar.file_uploader("Omloopsplanning", type=["xlsx", "xls"])
+
+# Sidebar voor Dienstregeling
+st.sidebar.markdown("## Upload the 'Dienstregeling'")
+uploaded_Dienstregeling = st.sidebar.file_uploader("Dienstregeling", type=["xlsx", "xls"], sheet_name = sheet_names[0])
+
+
 def controleer_energieverbruik_overschrijding(df_planning, df_tijden, energieverbruik_per_km=2.5, max_verbruik=364.5):
     def find_afstand(row, df_tijden):
         match = df_tijden[
@@ -35,17 +51,6 @@ def controleer_energieverbruik_overschrijding(df_planning, df_tijden, energiever
                 break
 
     return overschrijdingen
-
-# Hoofdcode
-st.title("Project 5 - Omloopsplanning en Dienstregeling Analyse")
-
-# Sidebar voor Omloopsplanning
-st.sidebar.markdown("## Upload the 'Omloopsplanning'")
-uploaded_Omloopsplanning = st.sidebar.file_uploader("Omloopsplanning", type=["xlsx", "xls"])
-
-# Sidebar voor Dienstregeling
-st.sidebar.markdown("## Upload the 'Dienstregeling'")
-uploaded_Dienstregeling = st.sidebar.file_uploader("Dienstregeling", type=["xlsx", "xls"])
 
 # Controleer of beide bestanden zijn geüpload
 if uploaded_Omloopsplanning is not None and uploaded_Dienstregeling is not None:
