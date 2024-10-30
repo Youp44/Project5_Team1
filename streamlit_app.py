@@ -127,3 +127,16 @@ st.markdown("<hr>", unsafe_allow_html=True)
 st.markdown('# Uitleg fout')
 st.markdown("<hr>", unsafe_allow_html=True)
 st.markdown('# Verbeterde versie')
+
+tab1,tab2,tab3,tab4 = st.tabs(['Omloopsplanning','Dienstregeling',"Afstandmatrix",'Show all'])
+with tab1:
+    st.header("Verbetering")
+    # met hier in de drie df weer gegeven als voorbeeld
+with tab2:
+    st.header('Dataframes')
+with tab3:
+    st.header('Verbeterde planning')
+with tab4:
+    st.header('Show all')
+
+
