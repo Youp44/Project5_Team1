@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
+import plotly.express as px
 
 def run():
     st.title("Analyse Omloopsplanning en Dienstregeling")
@@ -46,7 +47,8 @@ def run():
     df_planning['afstand_km'] = df_planning['afstand_meters'] / 1000
 
     # Stel energieverbruik_per_km in (vervang door de werkelijke waarde)
-    energieverbruik_per_km = st.number_input("Energieverbruik per km", value=1.0)
+   
+
 
     # Voeg een selectbox toe voor omloopnummer
     unique_omloop_nummers = df_planning['omloop nummer'].unique()
@@ -63,8 +65,7 @@ def run():
         df_selected_omloop['cumulatief_energieverbruik'] = df_selected_omloop['energieverbruik'].cumsum()  # Zorg dat je deze kolom eerder definieert
         df_selected_omloop['cumulatief_verwacht_energieverbruik'] = df_selected_omloop['verwacht_energieverbruik'].cumsum()
 
-        # Print de eerste paar rijen van df_selected_omloop om de waarden te inspecteren
-        st.write(df_selected_omloop[['energieverbruik', 'cumulatief_energieverbruik', 'cumulatief_verwacht_energieverbruik']].head(20))
+
 
         # Plotten van de resultaten
         plt.figure(figsize=(12, 6))
@@ -85,6 +86,19 @@ def run():
         # Toon de plot in Streamlit
         st.pyplot(plt)
     # Toon informatie over de status
+    df_planning['starttijd datum'] = pd.to_datetime(df_planning['starttijd datum'])
+    df_planning['eindtijd datum'] = pd.to_datetime(df_planning['eindtijd datum'])
+    fig = px.timeline(df_planning,x_start='starttijd datum', x_end='eindtijd datum', y='omloop nummer', color='activiteit')
+    fig.update_yaxes(tickmode= 'linear', tick0=1,dtick=1,autorange='reversed',showgrid=True,gridcolor='lightgray',gridwidth=1)
+    fig.update_xaxes(tickformat='%H:%M',showgrid=True,gridcolor='lightgray',gridwidth = 1)
+    fig.update_layout(
+        title=dict(text ='Gant chart',font=dict(size=30))
+    )
+    fig.update_layout(legend=dict(yanchor='bottom',y=0.01,xanchor='right',x=0.999))
+    st.plotly_chart(fig)
+
+
+
     overschrijding = df_selected_omloop['cumulatief_energieverbruik'].max() > max_verbruik
     status_kleur = "red" if overschrijding else "green"
     status_bericht = "Overschreden" if overschrijding else "Onder de limiet"
