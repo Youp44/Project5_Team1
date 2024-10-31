@@ -6,7 +6,7 @@ st.set_page_config(page_title="Multi-Page App", page_icon=":guardsman:", layout=
 
 # Sidebar for navigation
 st.sidebar.title("Navigation")
-st.sidebar.markdown("Select a page below")
+
 
 # Define the pages
 pages = {

@@ -17,7 +17,7 @@ def run():
 
     # Input for energy consumption and maximum consumption
     energieverbruik_per_km = st.number_input("Energy consumption per km (kWh)", min_value=0.1, value=2.5)
-    max_verbruik = st.number_input("Maximal consumption per bus (kWh)", min_value=1.0, value=364.5)
+    max_verbruik = st.number_input("Maximal consumption per bus (kWh)", min_value=1.0, value=270.0)
 
     # Function to find distance
     def find_afstand(row, df_afstand):
@@ -62,21 +62,21 @@ def run():
         max_verbruik_line = max_verbruik
 
         # Determine line colors based on consumption
-        kleur_actual = 'red' if df_selected_omloop['cumulatief_energieverbruik'].iloc[-1] > max_verbruik_line else 'green'
-        kleur_verwacht = 'red' if df_selected_omloop['cumulatief_verwacht_energieverbruik'].iloc[-1] > max_verbruik_line else 'blue'
+        kleur_actual = 'red' if df_selected_omloop['cumulatief_energieverbruik'].max() > max_verbruik_line else 'green'
+        kleur_verwacht = 'red' if df_selected_omloop['cumulatief_verwacht_energieverbruik'].max() > max_verbruik_line else 'blue'
 
         # Plot the results
-        plt.figure(figsize=(10, 4))
+        plt.figure(figsize=(12, 6),dpi=100)
 
         # Plot cumulative actual energy consumption
         plt.plot(df_selected_omloop.index, df_selected_omloop['cumulatief_energieverbruik'], 
-                 label='Cumulative Energie Consumption (Actual)', 
-                 color=kleur_actual, linewidth=2)
+            label='Cumulative Energie Consumption (Actual)', 
+            color=kleur_actual, linewidth=2)
 
         # Plot cumulative expected energy consumption
         plt.plot(df_selected_omloop.index, df_selected_omloop['cumulatief_verwacht_energieverbruik'], 
-                 label='Cumulative Energie Consumption (Expected)', 
-                 color=kleur_verwacht, linewidth=2)
+            label='Cumulative Energie Consumption (Expected)', 
+            color=kleur_verwacht, linewidth=2)
 
         # Add a horizontal line for max consumption
         plt.axhline(y=max_verbruik_line, color='purple', linestyle='--', label='Max Consumption (kWh)')
@@ -90,19 +90,6 @@ def run():
 
         # Show the plot in Streamlit
         st.pyplot(plt)
-
-        # Ensure the end time column is correctly converted to datetime
-        df_planning['starttijd datum'] = pd.to_datetime(df_planning['starttijd datum'], errors='coerce')
-        df_planning['eindtijd datum'] = pd.to_datetime(df_planning['eindtijd datum'], errors='coerce')
-
-        fig = px.timeline(df_planning, x_start='starttijd datum', x_end='eindtijd datum', y='omloop nummer', color='activiteit')
-        fig.update_yaxes(tickmode='linear', tick0=1, dtick=1, autorange='reversed', showgrid=True, gridcolor='lightgray', gridwidth=1)
-        fig.update_xaxes(tickformat='%H:%M', showgrid=True, gridcolor='lightgray', gridwidth=1)
-        fig.update_layout(
-            title=dict(text='Gantt chart', font=dict(size=30))
-        )
-        fig.update_layout(legend=dict(yanchor='bottom', y=0.01, xanchor='right', x=0.999))
-        st.plotly_chart(fig)
 
         overschrijdigen = {}
         # Loop through the unique loop numbers
@@ -128,14 +115,68 @@ def run():
                             }
                             break  # Stop the loop after the first exceedance
 
-        # Check if there are exceedances and display results
-        if overschrijdigen:
-            st.write("List of first energy consumption exceedances per bus:")
-            for omloop, oversch in overschrijdigen.items():
-                tijd = oversch['tijd'].time() if pd.notna(oversch['tijd']) else "Unknown"  # Check for NaT
-                st.write(f"Energy consumption exceeded in bus number {omloop} at {tijd}, total consumption: {oversch['totaal_verbruik']} kWh")
-        else:
-            st.write(f"Energy consumption stayed under the {max_verbruik} kWh for all buses.")
 
+
+# Maak een lege lijst om gegevens in de DataFrame-vorm te verzamelen
+        data = []
+
+        # Loop door elke overschrijding en voeg de gegevens toe aan de lijst
+        for omloop, oversch in overschrijdigen.items():
+            tijd = oversch['tijd'].time() if pd.notna(oversch['tijd']) else "Unknown"  # Controleer op NaT
+            data.append({
+                'Omloop nummer': omloop,
+                'Time': tijd,
+                'Overschrijding': oversch['totaal_verbruik']
+            })
+
+    # Zet de gegevens om in een DataFrame
+        df_overschrijding = pd.DataFrame(data)
+
+# Controleer of er overschrijdingen zijn en toon de resultaten
+        if not df_overschrijding.empty:
+            st.write("List of first energy exceedances on time per bus:")
+            st.dataframe(df_overschrijding, height=200)  # Maakt de DataFrame scrollbaar
+        else:
+            st.write(f"Energy consumption stayed under the threshold for all buses.")
+
+
+
+        # Ensure the end time column is correctly converted to datetime
+        df_planning['starttijd datum'] = pd.to_datetime(df_planning['starttijd datum'], errors='coerce')
+        df_planning['eindtijd datum'] = pd.to_datetime(df_planning['eindtijd datum'], errors='coerce')
+
+        # Voeg een selectievak toe voor lijnkeuze
+        lijn_keuze = st.selectbox("Choose a bus line", options=[400, 401, '400 & 401'])
+
+        # Filter de gegevens op de geselecteerde lijn en genereer de Gantt-diagram als op de knop wordt geklikt
+        if lijn_keuze == '400 & 401':
+        # Filter het dataframe voor beide lijnen 400 en 401
+            df_filtered = df_planning[df_planning['buslijn'].isin([400, 401])]
+        else:
+            # Filter voor de geselecteerde lijn (400 of 401)
+            df_filtered = df_planning[df_planning['buslijn'] == lijn_keuze]
+
+    
+            # Controleer of de gefilterde data niet leeg is
+        if not df_filtered.empty:
+            # Maak de Gantt Chart
+            fig = px.timeline(
+                df_filtered, 
+                x_start='starttijd datum', 
+                x_end='eindtijd datum', 
+                y='omloop nummer', 
+                color='activiteit'
+            )
+            fig.update_yaxes(tickmode='linear', tick0=1, dtick=1, autorange='reversed', showgrid=True, gridcolor='lightgray', gridwidth=1)
+            fig.update_xaxes(tickformat='%H:%M', showgrid=True, gridcolor='lightgray', gridwidth=1)
+            fig.update_layout(
+                title=dict(text=f'Gantt Chart for Bus Line {lijn_keuze}', font=dict(size=30))
+            )
+            fig.update_layout(legend=dict(yanchor='bottom', y=0.01, xanchor='right', x=0.999))
+    
+            # Toon de plot in Streamlit
+            st.plotly_chart(fig)
+        else:
+            st.write(f"No data available for bus line {lijn_keuze}")
 if __name__ == "__main__":
     run()
