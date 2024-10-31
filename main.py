@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # Set the title of the app as the first command
-st.set_page_config(page_title="Multi-Page App", page_icon=":guardsman:", layout="wide")
+st.set_page_config(page_title="Connexion project", page_icon=":guardsman:", layout="wide")
 
 # Sidebar for navigation
 st.sidebar.title("Navigation")
