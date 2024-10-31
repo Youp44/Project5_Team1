@@ -1,0 +1,9 @@
+startlocatie,eindlocatie,starttijd,eindtijd,activiteit,buslijn,energieverbruik,starttijd datum,eindtijd datum,omloop nummer
+ehvgar,ehvgar,05:18:03,05:46:03,idle,,6.2232,2024-10-31 05:18:03,2024-10-31 05:46:03,1
+ehvgar,ehvapt,05:58:32,06:13:32,materiaal rit,403,4.4806,2024-10-31 05:58:32,2024-10-31 06:13:32,1
+ehvapt,ehvapt,05:07:15,05:33:15,materiaal rit,403,0.0974,2024-10-31 05:07:15,2024-10-31 05:33:15,1
+ehvgar,ehvbst,05:12:38,05:20:38,materiaal rit,,8.0737,2024-10-31 05:12:38,2024-10-31 05:20:38,1
+ehvbst,ehvapt,05:22:38,05:46:38,materiaal rit,403,6.892,2024-10-31 05:22:38,2024-10-31 05:46:38,1
+ehvgar,ehvbst,05:53:47,06:06:47,idle,401,10.6841,2024-10-31 05:53:47,2024-10-31 06:06:47,1
+ehvbst,ehvapt,05:19:29,05:39:29,idle,403,3.1817,2024-10-31 05:19:29,2024-10-31 05:39:29,1
+ehvbst,ehvgar,05:18:32,05:26:32,dienst rit,,8.4557,2024-10-31 05:18:32,2024-10-31 05:26:32,1
