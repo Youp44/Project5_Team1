@@ -50,47 +50,67 @@ def run():
     # Filter on the selected loop number
     df_selected_omloop = df_planning[df_planning['omloop nummer'] == selected_omloop]
 
+         # Stel voor dat 'df_selected_omloop' al berekeningen heeft voor cumulatief energieverbruik
+        # Controleer of df_selected_omloop niet leeg is
+        # Controleer of df_selected_omloop niet leeg is
     if not df_selected_omloop.empty:
-        # Calculate expected energy consumption
+    # Bereken verwacht energieverbruik
         df_selected_omloop['verwacht_energieverbruik'] = df_selected_omloop['afstand_km'] * energieverbruik_per_km
 
-        # Calculate cumulative sum for actual and expected energy consumption
+    # Bereken cumulatief energieverbruik voor actueel en verwacht
         df_selected_omloop['cumulatief_energieverbruik'] = df_selected_omloop['energieverbruik'].cumsum()
         df_selected_omloop['cumulatief_verwacht_energieverbruik'] = df_selected_omloop['verwacht_energieverbruik'].cumsum()
 
-        # Determine the maximum consumption line
+    # Maximale verbruiksdrempel
         max_verbruik_line = max_verbruik
 
-        # Determine line colors based on consumption
-        kleur_actual = 'red' if df_selected_omloop['cumulatief_energieverbruik'].max() > max_verbruik_line else 'green'
-        kleur_verwacht = 'red' if df_selected_omloop['cumulatief_verwacht_energieverbruik'].max() > max_verbruik_line else 'blue'
+    # Maak een nieuwe lijst voor de aangepaste cumulatieve verwachte energieverbruik
+        aangepaste_cumulatief = []
+        cumulatieve_lading = 0  # Houdt de cumulatieve waarde na reset
 
-        # Plot the results
-        plt.figure(figsize=(12, 6),dpi=100)
+    # Loop door de cumulatieve waarden
+        for i in range(len(df_selected_omloop)):
+        # Voeg de verwachte energieverbruik toe aan cumulatieve lading
+            cumulatieve_lading += df_selected_omloop['verwacht_energieverbruik'].iloc[i]
 
-        # Plot cumulative actual energy consumption
-        plt.plot(df_selected_omloop.index, df_selected_omloop['cumulatief_energieverbruik'], 
-            label='Cumulative Energie Consumption (Actual)', 
-            color=kleur_actual, linewidth=2)
+        # Controleer of de cumulatieve verwachte energieverbruik boven de maximale verbruiksdrempel komt
+            if cumulatieve_lading > max_verbruik_line:
+            # Zet de waarde op de drempel om het opladen te simuleren
+                cumulatieve_lading = max_verbruik_line  # Beperk tot max_verbruik_line
 
-        # Plot cumulative expected energy consumption
-        plt.plot(df_selected_omloop.index, df_selected_omloop['cumulatief_verwacht_energieverbruik'], 
-            label='Cumulative Energie Consumption (Expected)', 
-            color=kleur_verwacht, linewidth=2)
+        # Voeg de aangepaste cumulatieve waarde toe
+            aangepaste_cumulatief.append(cumulatieve_lading)
 
-        # Add a horizontal line for max consumption
-        plt.axhline(y=max_verbruik_line, color='purple', linestyle='--', label='Max Consumption (kWh)')
+        # Reset de cumulatieve lading naar 0 als we de drempel overschrijden
+            if cumulatieve_lading == max_verbruik_line:
+                cumulatieve_lading = 0  # Begin opnieuw met opladen
 
-        # Title and labels
-        plt.title(f'Energy Consumption and Cumulative for Bus Number {selected_omloop}')
-        plt.xlabel('Index')
-        plt.ylabel('Energy Consumption (kWh)')
-        plt.grid(True)
-        plt.legend()
+    # Zet de aangepaste cumulatieve waarden terug in de DataFrame
+        df_aangepast = pd.DataFrame({
+            'index': range(len(aangepaste_cumulatief)),
+            'cumulatief_verwacht_energieverbruik': aangepaste_cumulatief
+        })
 
-        # Show the plot in Streamlit
-        st.pyplot(plt)
+    # Plot de resultaten
+        fig, ax = plt.subplots(figsize=(12, 6), dpi=100)
 
+    # Plot de cumulatieve verwachte energieverbruik
+        ax.plot(df_aangepast['index'], df_aangepast['cumulatief_verwacht_energieverbruik'], color='green', linewidth=2)
+
+    # Voeg een horizontale lijn toe voor de maximale drempel
+        ax.axhline(y=max_verbruik_line, color='purple', linestyle='--', label='Max Consumption (kWh)')
+
+    # Titel en labels
+        ax.set_title(f'Energy Consumption and Cumulative for Bus Number {selected_omloop}')
+        ax.set_xlabel('Index')
+        ax.set_ylabel('Energy Consumption (kWh)')
+        ax.grid(True)
+        ax.legend()
+
+    # Toon de plot in Streamlit
+        st.pyplot(fig)
+    
+    
         overschrijdigen = {}
         # Loop through the unique loop numbers
         for omloop_nummer in df_planning['omloop nummer'].unique():
