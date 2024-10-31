@@ -36,8 +36,8 @@ if uploaded_Omloopsplanning is not None and uploaded_Dienstregeling is not None:
     try:
         # Load files into DataFrames
         df_planning = pd.read_excel(uploaded_Omloopsplanning)
-        df_tijden = pd.read_excel(uploaded_Dienstregeling, sheet_name='Time Table')
-        df_afstanden = pd.read_excel(uploaded_Dienstregeling, sheet_name='Distance Matrix')
+        df_tijden = pd.read_excel(uploaded_Dienstregeling, sheet_name='Dienstregeling')
+        df_afstanden = pd.read_excel(uploaded_Dienstregeling, sheet_name='Afstandmatrix')
 
         # Store DataFrames in session state
         st.session_state.df_planning = df_planning
