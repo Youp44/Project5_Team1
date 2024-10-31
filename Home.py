@@ -8,7 +8,7 @@ import plotly.express as px
 def run():
     st.title("Analyse Omloopsplanning en Dienstregeling")
     st.write("Welcome to the Home Page!")
-
+    
     # Controleer of de benodigde DataFrames zijn opgeslagen in de session_state
     if 'df_planning' not in st.session_state:
         st.error("Er zijn geen geüploade gegevens. Upload de bestanden in de sidebar.")
@@ -68,7 +68,7 @@ def run():
 
 
         # Plotten van de resultaten
-        plt.figure(figsize=(12, 6))
+        plt.figure(figsize=(10, 4))
 
         # Cumulatieve energieverbruik plotten
         plt.plot(df_selected_omloop.index, df_selected_omloop['cumulatief_energieverbruik'], label='Cumulatief Energieverbruik (Werkelijk)', color='red', linewidth=2)
@@ -85,9 +85,10 @@ def run():
 
         # Toon de plot in Streamlit
         st.pyplot(plt)
-    # Toon informatie over de status
-    df_planning['starttijd datum'] = pd.to_datetime(df_planning['starttijd datum'])
-    df_planning['eindtijd datum'] = pd.to_datetime(df_planning['eindtijd datum'])
+
+
+
+
     fig = px.timeline(df_planning,x_start='starttijd datum', x_end='eindtijd datum', y='omloop nummer', color='activiteit')
     fig.update_yaxes(tickmode= 'linear', tick0=1,dtick=1,autorange='reversed',showgrid=True,gridcolor='lightgray',gridwidth=1)
     fig.update_xaxes(tickformat='%H:%M',showgrid=True,gridcolor='lightgray',gridwidth = 1)
@@ -97,7 +98,29 @@ def run():
     fig.update_layout(legend=dict(yanchor='bottom',y=0.01,xanchor='right',x=0.999))
     st.plotly_chart(fig)
 
+# Zorg ervoor dat de eindtijd kolom correct wordt omgezet naar datetime
+    df_planning['eindtijd'] = pd.to_datetime(df_planning['eindtijd'],error='coerce')
 
+    overschrijdingen = []
+    # Loop door de rijen van df_selected_omloop
+    for index, row in df_selected_omloop.iterrows():
+        cumulatief_verbruik = df_selected_omloop['verwacht_energieverbruik'].cumsum().iloc[index]
+    
+        if cumulatief_verbruik > max_verbruik:
+            overschrijdingen.append({
+                'omloop': selected_omloop,  # Omloop nummer
+                'tijd': row['eindtijd'],     # Tijd van overschrijding
+                'totaal_verbruik': cumulatief_verbruik
+            })
+
+# Controleer of er overschrijdingen zijn en print ze allemaal
+    if overschrijdingen:
+        st.write("Lijst met overschrijdingen van energieverbruik per omloop:")
+        for oversch in overschrijdingen:
+            tijd = oversch['tijd'].time()  # Haal alleen de tijd op
+            st.write(f"Energieverbruik overschreden in omloop {oversch['omloop']} om {tijd}, totaal verbruik: {oversch['totaal_verbruik']} kWh")
+    else:
+        st.write(f"Energieverbruik bleef onder de {max_verbruik} kWh voor alle omlopen.")
 
     overschrijding = df_selected_omloop['cumulatief_energieverbruik'].max() > max_verbruik
     status_kleur = "red" if overschrijding else "green"
