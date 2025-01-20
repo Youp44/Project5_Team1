@@ -165,23 +165,14 @@ def run():
         df_planning['starttijd datum'] = pd.to_datetime(df_planning['starttijd datum'], errors='coerce')
         df_planning['eindtijd datum'] = pd.to_datetime(df_planning['eindtijd datum'], errors='coerce')
 
-        # Voeg een selectievak toe voor lijnkeuze
-        lijn_keuze = st.selectbox("Choose a bus line", options=[400, 401, '400 & 401'])
+ 
 
-        # Filter de gegevens op de geselecteerde lijn en genereer de Gantt-diagram als op de knop wordt geklikt
-        if lijn_keuze == '400 & 401':
-        # Filter het dataframe voor beide lijnen 400 en 401
-            df_filtered = df_planning[df_planning['buslijn'].isin([400, 401])]
-        else:
-            # Filter voor de geselecteerde lijn (400 of 401)
-            df_filtered = df_planning[df_planning['buslijn'] == lijn_keuze]
-
-    
+        
             # Controleer of de gefilterde data niet leeg is
-        if not df_filtered.empty:
+        if not df_planning.empty:
             # Maak de Gantt Chart
             fig = px.timeline(
-                df_filtered, 
+                df_planning, 
                 x_start='starttijd datum', 
                 x_end='eindtijd datum', 
                 y='omloop nummer', 
@@ -190,13 +181,40 @@ def run():
             fig.update_yaxes(tickmode='linear', tick0=1, dtick=1, autorange='reversed', showgrid=True, gridcolor='lightgray', gridwidth=1)
             fig.update_xaxes(tickformat='%H:%M', showgrid=True, gridcolor='lightgray', gridwidth=1)
             fig.update_layout(
-                title=dict(text=f'Gantt Chart for Bus Line {lijn_keuze}', font=dict(size=30))
+                title=dict(text=f'Gantt Chart for Bus Line ', font=dict(size=30))
             )
             fig.update_layout(legend=dict(yanchor='bottom', y=0.01, xanchor='right', x=0.999))
     
             # Toon de plot in Streamlit
             st.plotly_chart(fig)
         else:
-            st.write(f"No data available for bus line {lijn_keuze}")
+            st.write(f"No data available for bus line ")
 if __name__ == "__main__":
     run()
+
+#SOC waarden 
+# Veiligheidsmarge
+# Oplaadtijden
+# Consistenties
+# Bussen niet teleporteren/ opsplittsen 
+# accucapiciteit van 300KWu
+# State of health (SOH) 85-95%
+#oplaad tempo 450Kw opgeladen tot 90% Minstens 15 minuten achter elkaar opladen
+# Gemiddelde verbruik ligt tussen 0.7 en 2.5 als die stil staat op 0.01
+# 10% van de accucapiciteit als veiligheidsmarge
+
+# Plan van aanpak. 
+# Variable creeren SOC die de waarde aanhoud van de accu. We kunnen dan de rest van de waardes invoeren
+# En de meegegeven parameters hanteren. Tijdens onze planning wordt deze variable dan bij gehouden. Wordt dit overschreden geeft dit een melding. 
+# Voor zowel de onder of bovengrens hierbij is dan te zien wanneer dit gebeurd en wordt dit rood. Dit is onderdeel een van de omloop checker. 
+
+# Deel 2 
+# We moeten ook voldoen aan alle parameters die we net hebben opgenoemd ik denk dat het goed is als we hier ook een def van moeten maken. Zo kunnen we 
+# De waardes van ook zowel de oplaadtijden controleren. Wat hier nog meer in moet komen te staan is later te benaderen. 
+
+# Deel 3
+# Zorgen dat de bus op dezelfde omloop blijft rijden en niet teleporteert van locatie naar locatie
+# Hoe we dit moeten doen weet ik nog niet zeker. Mis is het handig om te checken of de rit tijden voldoen.
+# Het omloop nummer mee te geven en te kijken of die bus ook logische route hanteert door dit te plotten per bus omloop?
+
+ 
