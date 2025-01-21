@@ -15,14 +15,42 @@ def run():
     df_planning = st.session_state.df_planning
     df_afstand = st.session_state.df_afstanden
     df_planning.rename(columns={'omloop nummer': 'omloopnummer'}, inplace=True)
-
+    df_planning.rename(columns={'Unnamed: 0': 'index'}, inplace=True)
     # Stukje met 'boolean index maken om hierbij aan te geven of de planning voldoet'
     #st.success('Wow')
     #st.warning('Je bus omloop voldoet niet aan de omgangs eisen')
 
 
-    def controleer_soc_grenzen(df_planning, MAX_waarde_SOC=770, min_waarde_SOC=30):
+# Voeg een kolom toe met "absolute tijd" in minuten sinds middernacht
+    def bereken_absolute_tijd(df):
+        # Omzetten naar datetime.time als dat nog niet gebeurd is
+        df['starttijd'] = pd.to_datetime(df['starttijd'], format='%H:%M:%S').dt.time
+        df['eindtijd'] = pd.to_datetime(df['eindtijd'], format='%H:%M:%S').dt.time
+
+        def tijd_naar_minuten(tijd):
+            return tijd.hour * 60 + tijd.minute
+
+        df['starttijd_min'] = df['starttijd'].apply(tijd_naar_minuten)
+        df['eindtijd_min'] = df['eindtijd'].apply(tijd_naar_minuten)
+
+        # Voeg 24 uur toe aan eindtijd als deze vóór starttijd ligt (over middernacht)
+        df['eindtijd_min'] = df.apply(
+            lambda row: row['eindtijd_min'] + 1440 if row['eindtijd_min'] < row['starttijd_min'] else row['eindtijd_min'],
+            axis=1
+        )
+
+        # Sorteer op starttijd_min en eindtijd_min
+        df = df.sort_values(by=['starttijd_min', 'eindtijd_min', 'index']).reset_index(drop=True)
+        return df
+
+    # Bereken absolute tijd en sorteer
+    df_planning = bereken_absolute_tijd(df_planning)
+
+
+
+    def controleer_soc_grenzen(df_planning, MAX_waarde_SOC=270, min_waarde_SOC=30):
         """
+        LET OP ER MOET NOG SORT OP TIJD/INDEX WORDEN TOEGEVOEGD
         Controleert de SOC-waarden op overschrijdingen van de grenswaarden.
     
         Parameters:
@@ -159,6 +187,86 @@ def run():
     if not df_korte_oplaadtijden.empty:
         st.dataframe(df_korte_oplaadtijden)  # Alleen tonen als er korte oplaadtijden zijn
     
+    
+
+    def controleer_verspringende_locaties_per_omloop(df_planning):
+        """
+        Controleert of de eindlocatie van de vorige rij gelijk is aan de startlocatie van de huidige rij,
+        per uniek omloopnummer en gesorteerd op de kolom 'index'.
+        
+        Parameters:
+        - df_planning (pd.DataFrame): De input DataFrame met omloopnummers en locaties.
+        
+        Returns:
+        - verspringingen (pd.DataFrame): DataFrame met rijen waarin de bus van locatie verspringt.
+        - waarschuwing (bool): Geeft aan of er een waarschuwing is (True als er verspringingen zijn, anders False).
+        """
+        verspringingen = []  # Lijst om rijen met verspringingen op te slaan
+        waarschuwing = False
+    
+        # Loop door unieke omloopnummers
+        for omloop in df_planning['omloopnummer'].unique():
+            # Filter de DataFrame op het huidige omloopnummer en sorteer op 'index'
+            df_omloop = df_planning[df_planning['omloopnummer'] == omloop].sort_values(by='starttijd')
+    
+            # Loop door de gefilterde DataFrame en controleer locaties
+            for i in range(1, len(df_omloop)):
+                vorige_rij = df_omloop.iloc[i - 1]
+                huidige_rij = df_omloop.iloc[i]
+    
+                # Controleer of de eindlocatie van de vorige rij gelijk is aan de startlocatie van de huidige rij
+                if vorige_rij['eindlocatie'] != huidige_rij['startlocatie']:
+                    if not waarschuwing:
+                        st.warning("Bus verspringt van locatie!")
+                        waarschuwing = True
+                    verspringingen.append({
+                        'omloopnummer': omloop,
+                        'index_huidige_rij': huidige_rij['index'],
+                        'vorige_eindlocatie': vorige_rij['eindlocatie'],
+                        'huidige_startlocatie': huidige_rij['startlocatie']
+                    })
+
+        # Maak een DataFrame met alle verspringingen
+        verspringingen_df = pd.DataFrame(verspringingen)
+
+        return verspringingen_df, waarschuwing
+
+
+    # Voorbeeld gebruik:
+    verspringingen_df, waarschuwing = controleer_verspringende_locaties_per_omloop(df_planning)
+
+    # Toon de resultaten
+    if not verspringingen_df.empty:
+        st.dataframe(verspringingen_df)  # Alleen tonen als er verspringingen zijn
+    else:
+        st.success("Alles in orde! Geen verspringende locaties.")
+
+
+
+    def eindtijd_groter_startijd(df):
+        waarschuwing = False 
+        tijd_controle = []
+        for i, row in df.iterrows(): 
+            if row['eindtijd_min'] < row['starttijd_min']:
+                if not waarschuwing:
+                    st.warning("Eindtijd > Startijd")
+                    waarschuwing = True
+                tijd_controle.append({
+                    'omloopnummer': row['omloopnummer'],
+                    'index_huidige_rij': row['index'],
+                    'eindtijd': row['eindtijd_min'],
+                    'startijd': row['starttijd_min']
+                    })   
+        tijd_controle = pd.DataFrame(tijd_controle)
+        
+        return tijd_controle, waarschuwing
+    
+    tijd_controle, waarschuwing =eindtijd_groter_startijd(df_planning)  
+
+    if not tijd_controle.empty:
+        st.dataframe(tijd_controle)
+    else:
+        st.success('Alles in orde! Geen eindtijden groter dan starttijden')    
 #SOC waarden 
 # Veiligheidsmarge
 # Oplaadtijden
