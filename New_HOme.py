@@ -267,6 +267,29 @@ def run():
         st.dataframe(tijd_controle)
     else:
         st.success('Alles in orde! Geen eindtijden groter dan starttijden')    
+
+
+                    # Controleer of de gefilterde data niet leeg is
+        if not df_planning.empty:
+            # Maak de Gantt Chart
+            fig = px.timeline(
+                df_planning, 
+                x_start='starttijd datum', 
+                x_end='eindtijd datum', 
+                y='omloopnummer', 
+                color='activiteit'
+            )
+            fig.update_yaxes(tickmode='linear', tick0=1, dtick=1, autorange='reversed', showgrid=True, gridcolor='lightgray', gridwidth=1)
+            fig.update_xaxes(tickformat='%H:%M', showgrid=True, gridcolor='lightgray', gridwidth=1)
+            fig.update_layout(
+                title=dict(text=f'Gantt Chart for Bus Line ', font=dict(size=30))
+            )
+            fig.update_layout(legend=dict(yanchor='bottom', y=0.01, xanchor='right', x=0.999))
+    
+            # Toon de plot in Streamlit
+            st.plotly_chart(fig)
+        else:
+            st.write(f"No data available for bus line ")
 #SOC waarden 
 # Veiligheidsmarge
 # Oplaadtijden
