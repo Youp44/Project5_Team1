@@ -32,21 +32,21 @@ elif selection == "Uploaded Data":
 uploaded_Omloopsplanning = st.sidebar.file_uploader("Upload 'Bus Planning'", type=["xlsx", "xls"])
 uploaded_Dienstregeling = st.sidebar.file_uploader("Upload 'Time Table'", type=["xlsx", "xls"])
 
-if uploaded_Omloopsplanning is not None and uploaded_Dienstregeling is not None:
-    try:
-        # Load files into DataFrames
-        df_planning = pd.read_excel(uploaded_Omloopsplanning)
-        df_tijden = pd.read_excel(uploaded_Dienstregeling, sheet_name='Dienstregeling')
-        df_afstanden = pd.read_excel(uploaded_Dienstregeling, sheet_name='Afstandsmatrix')
+if st.button('Submit files'):
+    if uploaded_Omloopsplanning is not None and uploaded_Dienstregeling is not None:
+        try:
+            # Load files into DataFrames
+            df_planning = pd.read_excel(uploaded_Omloopsplanning)
+            df_tijden = pd.read_excel(uploaded_Dienstregeling, sheet_name='Dienstregeling')
+            df_afstanden = pd.read_excel(uploaded_Dienstregeling, sheet_name='Afstandsmatrix')
+    
+            # Store DataFrames in session state
+            st.session_state.df_planning = df_planning
+            st.session_state.df_tijden = df_tijden
+            st.session_state.df_afstanden = df_afstanden
+            
+            st.success("Files Succesfully Uploaded!")
+    
+        except Exception as e:
+            st.error("An error occurred while processing the files: " + str(e))
 
-        # Store DataFrames in session state
-        st.session_state.df_planning = df_planning
-        st.session_state.df_tijden = df_tijden
-        st.session_state.df_afstanden = df_afstanden
-        
-        st.success("Files Succesfully Uploaded!")
-
-    except Exception as e:
-        st.error("An error occurred while processing the files: " + str(e))
-else:
-    st.warning("Upload both 'Bus Planning' and 'Time Table' to continue.")

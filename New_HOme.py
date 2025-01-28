@@ -9,7 +9,8 @@ def run():
 
     # Check if the necessary DataFrames are stored in session_state
     if 'df_planning' not in st.session_state:
-        st.error("There is no uploaded data. Upload the files in the sidebar.")
+        st.warning("Please upload both 'Bus Planning' and 'Time Table' in to the sidebar to continue.")
+
         return
     
     df_planning = st.session_state.df_planning
@@ -80,7 +81,7 @@ def run():
             # Controleer de grenzen
             if SOC < min_waarde_SOC or SOC > MAX_waarde_SOC:
                 if not warning:
-                    st.warning('Gaat niet goed: SOC overschrijdt de grenzen!')
+                    st.error('There are {} intervals where a bus is below the minimum SOC value.')
                     warning = True
                 fouten = True
                 overschreidingen.append({
@@ -101,7 +102,9 @@ def run():
 
 # Toon de resultaten op basis van fouten
     if fouten:
-        st.dataframe(df_overschrijdingen)  # Alleen tonen als er overschrijdingen zijn
+        with st.expander("Click for more information"):
+            st.write("The following rows have errors or violations:")
+            st.dataframe(df_overschrijdingen)  # Alleen tonen als er overschrijdingen zijn
     else:
         st.success('Alles in orde! Geen SOC-overschrijdingen.')
 
@@ -160,7 +163,7 @@ def run():
                 # Controleer of de opladingstijd kleiner is dan de minimale oplaadtijd
                 if oplaad_tijd <= min_oplaadtijd:
                     if not warning:
-                        st.warning(f'Gaat niet goed: Oplaadtijd is korter dan {min_oplaadtijd} minuten!')
+                        st.error(f'Gaat niet goed: Oplaadtijd is korter dan {min_oplaadtijd} minuten!')
                         warning = True  # Waarschuwing maar één keer tonen
                     korte_oplaadtijden.append({
                         'rij_index': i,
