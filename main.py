@@ -33,7 +33,7 @@ elif selection == "Uploaded Data":
 uploaded_Omloopsplanning = st.sidebar.file_uploader("Upload 'Bus Planning'", type=["xlsx", "xls"])
 uploaded_Dienstregeling = st.sidebar.file_uploader("Upload 'Time Table'", type=["xlsx", "xls"])
 
-if st.button('Submit files'):
+if st.sidebar.button('Submit files'):
     if uploaded_Omloopsplanning is not None and uploaded_Dienstregeling is not None:
         try:
             # Load files into DataFrames
@@ -47,7 +47,8 @@ if st.button('Submit files'):
             st.session_state.df_afstanden = df_afstanden
             
             st.success("Files Succesfully Uploaded!")
-            
+            st.session_state.navigate = True
+
         except Exception as e:
             st.error("An error occurred while processing the files: " + str(e))
 

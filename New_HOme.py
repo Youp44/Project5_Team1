@@ -82,7 +82,7 @@ def run():
             # Controleer de grenzen
             if SOC < min_waarde_SOC or SOC > MAX_waarde_SOC:
                 if not warning:
-                    st.error('There are {} intervals where a bus is below the minimum SOC value.')
+                    st.error(f'There are intervals where a bus is below the minimum SOC value.')
                     warning = True
                 fouten = True
                 overschreidingen.append({
@@ -91,14 +91,14 @@ def run():
                     'energieverbruik': row['energieverbruik'],
                     'SOC': SOC
                 })
-
+            
             # Voeg SOC-waarde toe aan de DataFrame
             df_planning.loc[i, 'SOC'] = SOC
 
         # Maak een DataFrame met alleen overschrijdingsgevallen
         df_overschrijdingen = pd.DataFrame(overschreidingen)
-    
-        return df_overschrijdingen, fouten 
+        
+        return df_overschrijdingen, fouten
     df_overschrijdingen, fouten = controleer_soc_grenzen(df_planning)
 
 # Toon de resultaten op basis van fouten
