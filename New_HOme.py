@@ -15,6 +15,7 @@ def run():
     
     df_planning = st.session_state.df_planning
     df_afstand = st.session_state.df_afstanden
+    df_tijden = st.session_state.df_tijden
     df_planning.rename(columns={'omloop nummer': 'omloopnummer'}, inplace=True)
     df_planning.rename(columns={'Unnamed: 0': 'index'}, inplace=True)
     # Stukje met 'boolean index maken om hierbij aan te geven of de planning voldoet'
@@ -244,6 +245,50 @@ def run():
     else:
         st.success("Alles in orde! Geen verspringende locaties.")
 
+
+
+
+    def check_missed_buses(df_tijden, df_planning):
+        """
+        Controleert of alle vertrektijden uit df_tijden aanwezig zijn in de geplande ritten van df_planning.
+        Als een vertrektijd uit df_tijden ontbreekt in df_planning, wordt dit beschouwd als een gemiste rit.
+    
+        Parameters:
+            df_tijden (pd.DataFrame): DataFrame met de verwachte dienstregeling (vertrektijden).
+            df_planning (pd.DataFrame): DataFrame met de geplande ritten.
+
+        Returns:
+            pd.DataFrame: DataFrame met gemiste ritten.
+        """
+        if df_tijden.empty or df_planning.empty:
+            return pd.DataFrame()  # Geen data beschikbaar, dus geen check nodig
+
+        # We willen de buslijn, startlocatie, eindlocatie en vertrektijd controleren
+        # Maak een lijst van de unieke ritten in df_tijden
+        df_tijden_unique = df_tijden[['buslijn', 'startlocatie', 'eindlocatie', 'vertrektijd']].drop_duplicates()
+
+        # Merge df_tijden met df_planning op buslijn, startlocatie en eindlocatie om te zien of de vertrektijd in de planning staat
+        merged_df = df_tijden_unique.merge(
+            df_planning, 
+            on=['buslijn', 'startlocatie', 'eindlocatie'], 
+            how='left', 
+            suffixes=('_tijden', '_planning')
+        )
+
+        # Zoek naar rijen waar de vertrektijd niet overeenkomt, of de rit niet in de planning staat
+        missed_buses = merged_df[merged_df['vertrektijd'].isna()]
+
+        return missed_buses  # Retourneer de gemiste bussen
+
+    # Voer de controle uit
+    missed_stations_df = check_missed_buses(df_tijden, df_planning)
+
+    # Controleer of er gemiste stations zijn en toon foutmelding
+    if not missed_stations_df.empty:
+        st.error("Er zijn gemiste stations! Zie onderstaande tabel voor details.")
+        st.dataframe(missed_stations_df)
+    else:
+        st.success("Alle bussen vertrekken volgens planning!")
 
 
     def eindtijd_groter_startijd(df):

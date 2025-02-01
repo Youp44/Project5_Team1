@@ -5,6 +5,7 @@ import pandas as pd
 st.set_page_config(page_title="Connexion project", page_icon=":guardsman:", layout="wide")
 
 # Sidebar for navigation
+
 st.sidebar.title("Navigation")
 
 
@@ -46,7 +47,7 @@ if st.button('Submit files'):
             st.session_state.df_afstanden = df_afstanden
             
             st.success("Files Succesfully Uploaded!")
-    
+            
         except Exception as e:
             st.error("An error occurred while processing the files: " + str(e))
 
