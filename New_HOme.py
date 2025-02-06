@@ -164,7 +164,7 @@ def run():
                 # Controleer of de opladingstijd kleiner is dan de minimale oplaadtijd
                 if oplaad_tijd <= min_oplaadtijd:
                     if not warning:
-                        st.error(f'Gaat niet goed: Oplaadtijd is korter dan {min_oplaadtijd} minuten!')
+                        st.error(f'Error charing time is less than {min_oplaadtijd} minutes!')
                         warning = True  # Waarschuwing maar één keer tonen
                     korte_oplaadtijden.append({
                         'rij_index': i,
@@ -179,7 +179,7 @@ def run():
     
         # Toon de succesmelding als er geen korte oplaadtijden zijn
         if not warning:
-            st.success(f'Alles in orde! Geen opladingen korter dan {min_oplaadtijd} minuten.')
+            st.success(f' Everything is fine! There are no charging time shorter than {min_oplaadtijd} minutes.')
 
         return df_korte_oplaadtijden, warning
 
@@ -221,7 +221,7 @@ def run():
                 # Controleer of de eindlocatie van de vorige rij gelijk is aan de startlocatie van de huidige rij
                 if vorige_rij['eindlocatie'] != huidige_rij['startlocatie']:
                     if not waarschuwing:
-                        st.warning("Bus verspringt van locatie!")
+                        st.warning("Bus jumps location!")
                         waarschuwing = True
                     verspringingen.append({
                         'omloopnummer': omloop,
@@ -243,7 +243,7 @@ def run():
     if not verspringingen_df.empty:
         st.dataframe(verspringingen_df)  # Alleen tonen als er verspringingen zijn
     else:
-        st.success("Alles in orde! Geen verspringende locaties.")
+        st.success('Everything is fine there are no busses jumping from location!')
 
 
 
@@ -285,10 +285,10 @@ def run():
 
     # Controleer of er gemiste stations zijn en toon foutmelding
     if not missed_stations_df.empty:
-        st.error("Er zijn gemiste stations! Zie onderstaande tabel voor details.")
+        st.error("Busstation are missed! See the tabel below for more information.")
         st.dataframe(missed_stations_df)
     else:
-        st.success("Alle bussen vertrekken volgens planning!")
+        st.success("All the busses comply to the schedule!")
 
 
     def eindtijd_groter_startijd(df):
@@ -314,7 +314,7 @@ def run():
     if not tijd_controle.empty:
         st.dataframe(tijd_controle)
     else:
-        st.success('Alles in orde! Geen eindtijden groter dan starttijden')    
+        st.success('Everything is fine! No end time greater than starttime')    
 
 
                     # Controleer of de gefilterde data niet leeg is
