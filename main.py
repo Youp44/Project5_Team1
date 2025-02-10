@@ -21,7 +21,7 @@ selection = st.sidebar.radio('Go to', list(pages.keys()))
 
 # Import and run the selected page
 if selection == "Home":
-    from New_HOme import run  # Ensure Home.py has a run() function
+    from New_HOme import run  
     run()
 elif selection == "Improved Scheduling":
     from ImprovedScheduling import run  # Ensure ImprovedScheduling.py has a run() function
