@@ -90,16 +90,7 @@ def run():
     # Gantt Chart for existing schedule
     plot_gantt_chart(df_planning, 'Gantt Chart for Bus Line')
 
-    # Load improved schedule for comparison
-    try:
-        improved_schedule = pd.read_excel('/mnt/data/omloopplanning (2).xlsx')
-        st.write("### Improved Bus Planning")
-        st.dataframe(improved_schedule.head(10))
-    
-        # Gantt Chart for improved schedule
-        plot_gantt_chart(improved_schedule, 'Gantt Chart for Improved Bus Line')
-    except Exception as e:
-        st.error(f"Failed to load improved schedule: {e}")
+
 
 if __name__ == "__main__":
     run()
