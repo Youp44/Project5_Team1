@@ -50,89 +50,108 @@ def run():
 
 
 
-    def controleer_soc_grenzen(df_planning, MAX_waarde_SOC=270, min_waarde_SOC=30):
+    def controleer_soc_grenzen(df_planning, df_afstand, energieverbruik_per_km=2.5, MAX_waarde_SOC=270, min_waarde_SOC=30):
         """
-        LET OP ER MOET NOG SORT OP TIJD/INDEX WORDEN TOEGEVOEGD
-        Controleert de SOC-waarden op overschrijdingen van de grenswaarden.
-    
+        Controleert de SOC-waarden op basis van theoretisch energieverbruik berekend met afstand.
+
         Parameters:
-        - df_planning (pd.DataFrame): De input DataFrame met de planning en energieverbruik.
-        - MAX_waarde_SOC (float): De maximale SOC-waarde.
-        - min_waarde_SOC (float): De minimale SOC-waarde.
-        
+        - df_planning (pd.DataFrame): De input DataFrame met de planning.
+        - df_afstand (pd.DataFrame): DataFrame met afstanden tussen locaties.
+        - energieverbruik_per_km (float): Verbruik in kWh per km.
+        - MAX_waarde_SOC (float): Maximale SOC-waarde.
+        - min_waarde_SOC (float): Minimale SOC-waarde.
+    
         Returns:
         - df_overschrijdingen (pd.DataFrame): DataFrame met rijen waarin de SOC wordt overschreden.
+        - soc_per_omloop (dict): Dictionary met SOC-waarden per omloopnummer.
         """
-        SOC = MAX_waarde_SOC
-        vorige_omloop = None
-        warning = False
+        soc_per_omloop = {}
+        df_planning['SOC'] = 0  # Voeg een SOC-kolom toe
+        overschrijdingen = []
         fouten = False
-        # Lijst om overschrijdingsgevallen op te slaan
-        overschreidingen = []
-
-        for i, row in df_planning.iterrows():
-            # Reset SOC bij een nieuwe omloop
-            if row['omloopnummer'] != vorige_omloop:
-                SOC = MAX_waarde_SOC
-                vorige_omloop = row['omloopnummer']
-
-            # Energieverbruik eraf trekken
-            SOC -= row['energieverbruik']
-
-            # Controleer de grenzen
-            if SOC < min_waarde_SOC or SOC > MAX_waarde_SOC:
-                if not warning:
-                    st.error(f'There are intervals where a bus is below the minimum SOC value.')
-                    warning = True
-                fouten = True
-                overschreidingen.append({
-                    'rij_index': i,
-                    'omloopnummer': row['omloopnummer'],
-                    'energieverbruik': row['energieverbruik'],
-                    'SOC': SOC
-                })
-            
-            # Voeg SOC-waarde toe aan de DataFrame
-            df_planning.loc[i, 'SOC'] = SOC
-
-        # Maak een DataFrame met alleen overschrijdingsgevallen
-        df_overschrijdingen = pd.DataFrame(overschreidingen)
+        warning = False
         
-        return df_overschrijdingen, fouten
-    df_overschrijdingen, fouten = controleer_soc_grenzen(df_planning)
+        for omloop in df_planning['omloopnummer'].unique():
+            SOC = MAX_waarde_SOC
+            soc_waarden = []
+        
+            for i, row in df_planning[df_planning['omloopnummer'] == omloop].iterrows():
+                # Reset SOC als de minimale grens wordt bereikt
+                if SOC < min_waarde_SOC:
+                    SOC = MAX_waarde_SOC
+            
+                # Zoek afstand
+                match = df_afstand[
+                    (df_afstand['startlocatie'] == row['startlocatie']) & 
+                    (df_afstand['eindlocatie'] == row['eindlocatie']) & 
+                    ((df_afstand['buslijn'] == row['buslijn']) | df_afstand['buslijn'].isna())
+                ]
+                afstand_m = match.iloc[0]['afstand in meters'] if not match.empty else 0
+                afstand_km = afstand_m / 1000  # Omzetten naar kilometers
+            
+                # Bereken energieverbruik
+                energieverbruik = afstand_km * energieverbruik_per_km
+            
+                # Trek energieverbruik af van SOC
+                SOC -= energieverbruik
+            
+                # Sla SOC-waarde op
+                soc_waarden.append(SOC)
+                df_planning.at[i, 'SOC'] = SOC
+            
+                # Controleer de SOC-grenzen
+                if SOC < min_waarde_SOC:
+                    if not warning:
+                        st.error(f'There are intervals where a bus is below the minimum SOC value.')
+                        warning = True
+                    fouten = True
+                    overschrijdingen.append({
+                        'rij_index': i,
+                        'omloopnummer': omloop,
+                        'afstand_km': afstand_km,
+                        'energieverbruik': energieverbruik,
+                        'SOC': SOC
+                    })
+                    # Reset SOC na overschrijding
+                    SOC = MAX_waarde_SOC
+        
+            # Sla SOC-waarden per omloop op
+            soc_per_omloop[omloop] = soc_waarden
+    
+        df_overschrijdingen = pd.DataFrame(overschrijdingen)
+    
+        return df_overschrijdingen, fouten, soc_per_omloop
 
-# Toon de resultaten op basis van fouten
+    # Interface met Streamlit
+    energieverbruik_per_km = st.number_input("Energy consumption per km (kWh)", min_value=0.1, value=2.5)
+    max_verbruik = st.number_input("Maximal consumption per bus (kWh)", min_value=1.0, value=270.0)
+    min_waarde_SOC = st.number_input("Minimal SOC-value", min_value=1.0, value=30.0)
+    df_overschrijdingen, fouten, soc_per_omloop = controleer_soc_grenzen(df_planning, df_afstand, energieverbruik_per_km, max_verbruik)
+
     if fouten:
         with st.expander("Click for more information"):
             st.write("The following rows have errors or violations:")
-            st.dataframe(df_overschrijdingen)  # Alleen tonen als er overschrijdingen zijn
+            st.dataframe(df_overschrijdingen)
     else:
         st.success('Alles in orde! Geen SOC-overschrijdingen.')
 
-        """
-        Dit deel moet nog aangepast worden voor wat en wanneer we willen checekn 
-        """
-           # Controleer of de gefilterde data niet leeg is
-        if not df_planning.empty:
-            # Maak de Gantt Chart
-            fig = px.timeline(
-                df_planning, 
-                x_start='starttijd datum', 
-                x_end='eindtijd datum', 
-                y='omloopnummer', 
-                color='activiteit'
-            )
-            fig.update_yaxes(tickmode='linear', tick0=1, dtick=1, autorange='reversed', showgrid=True, gridcolor='lightgray', gridwidth=1)
-            fig.update_xaxes(tickformat='%H:%M', showgrid=True, gridcolor='lightgray', gridwidth=1)
-            fig.update_layout(
-                title=dict(text=f'Gantt Chart for Bus Line ', font=dict(size=30))
-            )
-            fig.update_layout(legend=dict(yanchor='bottom', y=0.01, xanchor='right', x=0.999))
-    
-            # Toon de plot in Streamlit
-            st.plotly_chart(fig)
-        else:
-            st.write(f"No data available for bus line ")
+    # Selectie van omloopnummer voor plot
+    omloop_selectie = st.selectbox("Selecteer een omloopnummer om SOC te bekijken", list(soc_per_omloop.keys()))
+
+    # Plot van SOC-waarden voor geselecteerde omloop
+    fig, ax = plt.subplots()
+    ax.plot(range(len(soc_per_omloop[omloop_selectie])), soc_per_omloop[omloop_selectie], label=f'Theoretische SOC waarde - Omloop {omloop_selectie}', linestyle='-', marker='o')
+    ax.axhline(y=min_waarde_SOC, color='r', linestyle='--', label='Minimale SOC (30)')
+    ax.set_xlabel("Index")
+    ax.set_ylabel("SOC waarde (kWh)")
+    ax.set_title(f"Theoretische SOC waarde voor Omloop {omloop_selectie}")
+    ax.legend(loc="upper right")  # Legenda rechtsboven
+    st.pyplot(fig)
+
+
+
+
+
     
 
 
@@ -338,6 +357,9 @@ def run():
             st.plotly_chart(fig)
         else:
             st.write(f"No data available for bus line ")
+
+
+
 #SOC waarden 
 # Veiligheidsmarge
 # Oplaadtijden
