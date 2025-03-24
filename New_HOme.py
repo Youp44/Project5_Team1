@@ -237,7 +237,7 @@ def run():
             for i, huidige_rij in df_omloop.iterrows():
                 if vorige_rij is not None:
                     if vorige_rij['eindlocatie'] != huidige_rij['startlocatie']:
-                        print("Bus jumps location!")
+                        st.warning("Bus jumps location!")
                         waarschuwing = True
                         verspringingen.append({
                             'omloopnummer': omloop,
@@ -266,11 +266,13 @@ def run():
 
 
 
+
+    # Functie om gemiste bussen te controleren
     def check_missed_buses(df_tijden, df_planning):
         """
-        Controleert of alle vertrektijden uit df_tijden aanwezig zijn in de geplande ritten van df_planning.
+        Controleert of alle vertrektijden uit df_tijden aanwezig zijn in de geplande dienst ritten van df_planning.
         Als een vertrektijd uit df_tijden ontbreekt in df_planning, wordt dit beschouwd als een gemiste rit.
-    
+
         Parameters:
             df_tijden (pd.DataFrame): DataFrame met de verwachte dienstregeling (vertrektijden).
             df_planning (pd.DataFrame): DataFrame met de geplande ritten.
@@ -281,32 +283,99 @@ def run():
         if df_tijden.empty or df_planning.empty:
             return pd.DataFrame()  # Geen data beschikbaar, dus geen check nodig
 
-        # We willen de buslijn, startlocatie, eindlocatie en vertrektijd controleren
-        # Maak een lijst van de unieke ritten in df_tijden
-        df_tijden_unique = df_tijden[['buslijn', 'startlocatie', 'eindlocatie', 'vertrektijd']].drop_duplicates()
+        # Filter alleen de dienst ritten uit df_planning
+        dienst_ritten = df_planning[df_planning['activiteit'] == 'dienst rit']
 
-        # Merge df_tijden met df_planning op buslijn, startlocatie en eindlocatie om te zien of de vertrektijd in de planning staat
-        merged_df = df_tijden_unique.merge(
-            df_planning, 
-            on=['buslijn', 'startlocatie', 'eindlocatie'], 
-            how='left', 
-            suffixes=('_tijden', '_planning')
-        )
+    # Zet de vertrektijden uit beide bestanden in hetzelfde tijdformaat
+        df_tijden['vertrektijd'] = pd.to_datetime(df_tijden['vertrektijd'], format='%H:%M').dt.time
+        dienst_ritten['starttijd'] = pd.to_datetime(dienst_ritten['starttijd'], format='%H:%M:%S').dt.time
 
-        # Zoek naar rijen waar de vertrektijd niet overeenkomt, of de rit niet in de planning staat
-        missed_buses = merged_df[merged_df['vertrektijd'].isna()]
+        # Controleer of alle vertrektijden uit df_tijden terugkomen als starttijd bij dienst ritten
+        missing_times = []
+        for _, row in df_tijden.iterrows():
+            if not ((dienst_ritten['starttijd'] == row['vertrektijd']) & 
+                    (dienst_ritten['startlocatie'] == row['startlocatie']) & 
+                    (dienst_ritten['eindlocatie'] == row['eindlocatie']) & 
+                    (dienst_ritten['buslijn'] == row['buslijn'])).any():
+                missing_times.append(row.to_dict())
 
-        return missed_buses  # Retourneer de gemiste bussen
+        # Maak een DataFrame met de gemiste bussen
+        missed_buses_df = pd.DataFrame(missing_times)
+
+        return missed_buses_df  # Retourneer de gemiste bussen
 
     # Voer de controle uit
     missed_stations_df = check_missed_buses(df_tijden, df_planning)
 
+
+
     # Controleer of er gemiste stations zijn en toon foutmelding
     if not missed_stations_df.empty:
-        st.error("Busstation are missed! See the tabel below for more information.")
+        st.error("Busstation are missed! See the table below for more information.")
         st.dataframe(missed_stations_df)
     else:
-        st.success("All the busses comply to the schedule!")
+        st.success("All the buses comply to the schedule!")
+
+
+
+    
+    def check_dienst_ritten_reistijd(df_planning, df_afstand):
+        """
+    Controleert of de reistijd voor de dienst ritten uit df_planning binnen de opgegeven min en max reistijd uit df_afstand valt.
+    Als een rit buiten de limieten valt, wordt dit beschouwd als een ongeldige rit.
+
+    Parameters:
+        df_planning (pd.DataFrame): DataFrame met de geplande ritten.
+        df_afstand (pd.DataFrame): DataFrame met de min en max reistijden voor verschillende ritten.
+
+    Returns:
+        pd.DataFrame: DataFrame met ongeldige ritten.
+        """
+
+    # Filter alleen de dienst ritten uit df_planning
+        dienst_ritten = df_planning[df_planning['activiteit'] == 'dienst rit']
+    
+    # Zet de start- en eindtijd om naar datetime als ze nog niet in dat formaat staan
+        dienst_ritten['starttijd'] = pd.to_datetime(dienst_ritten['starttijd'])
+        dienst_ritten['eindtijd'] = pd.to_datetime(dienst_ritten['eindtijd'])
+    
+    # Bereken de reistijd in minuten
+        dienst_ritten['reistijd_min'] = (dienst_ritten['eindtijd'] - dienst_ritten['starttijd']).dt.total_seconds() / 60
+    
+    # Lijst voor ongeldige ritten
+        invalid_rides = []
+
+    # Loop door elke rit en controleer of de reistijd binnen de min/max limieten valt
+        for _, row in dienst_ritten.iterrows():
+        # Zoek naar de overeenkomstige startlocatie, eindlocatie en buslijn in de afstandmatrix
+            match = df_afstand[(df_afstand['startlocatie'] == row['startlocatie']) &
+                            (df_afstand['eindlocatie'] == row['eindlocatie']) &
+                            (df_afstand['buslijn'] == row['buslijn'])]
+        
+            if not match.empty:
+                # Haal de min- en max reistijd op uit de afstandmatrix
+                min_time, max_time = match.iloc[0]['min reistijd in min'], match.iloc[0]['max reistijd in min']
+            
+            # Vergelijk de reistijd met de limieten
+                if not (min_time <= row['reistijd_min'] <= max_time):
+                    invalid_rides.append(row.to_dict())
+
+    # Maak een DataFrame van de ongeldige ritten
+        invalid_rides_df = pd.DataFrame(invalid_rides)
+
+        return invalid_rides_df  # Retourneer de ongeldige ritten
+
+# Streamlit-code (buiten de functie):
+
+# Aanroepen van de functie en resultaat ontvangen
+    invalid_rides_df = check_dienst_ritten_reistijd(df_planning, df_afstand)
+
+# Controleer of er ongeldige ritten zijn en toon foutmelding
+    if not invalid_rides_df.empty:
+        st.warning("De volgende dienst ritten vallen buiten de reistijdslimieten:")
+        st.dataframe(invalid_rides_df)
+    else:
+        st.success("Alle dienst ritten vallen binnen de reistijdslimieten.")
 
 
     def eindtijd_groter_startijd(df):
