@@ -49,7 +49,8 @@ def run():
     df_planning = bereken_absolute_tijd(df_planning)
 
 
-
+    # Moeten hier nog toevoegen dat wanneer de bus bij een oplaad stuk is dat hij dan oplaad, en dan die waarde er wel bij toevoegen
+    # Nu staat het als theoretische waarde, dus wanneer die overschreid zet index terug naar MAX_waar_SOC
     def controleer_soc_grenzen(df_planning, df_afstand, energieverbruik_per_km=2.5, MAX_waarde_SOC=270, min_waarde_SOC=30):
         """
         Controleert de SOC-waarden op basis van theoretisch energieverbruik berekend met afstand.
@@ -60,7 +61,7 @@ def run():
         - energieverbruik_per_km (float): Verbruik in kWh per km.
         - MAX_waarde_SOC (float): Maximale SOC-waarde.
         - min_waarde_SOC (float): Minimale SOC-waarde.
-    
+
         Returns:
         - df_overschrijdingen (pd.DataFrame): DataFrame met rijen waarin de SOC wordt overschreden.
         - soc_per_omloop (dict): Dictionary met SOC-waarden per omloopnummer.
@@ -70,57 +71,57 @@ def run():
         overschrijdingen = []
         fouten = False
         warning = False
-        
+    
         for omloop in df_planning['omloopnummer'].unique():
             SOC = MAX_waarde_SOC
             soc_waarden = []
-        
+    
             for i, row in df_planning[df_planning['omloopnummer'] == omloop].iterrows():
-                # Reset SOC als de minimale grens wordt bereikt
-                if SOC < min_waarde_SOC:
-                    SOC = MAX_waarde_SOC
+            # Absolute waarde optellen als de bus aan het opladen is
+                if row['activiteit'] == 'opladen':
+                    SOC += abs(row['energieverbruik'])  # Absolute waarde optellen
+                    if SOC > MAX_waarde_SOC:
+                        SOC = MAX_waarde_SOC  # Beperk SOC tot MAX_waarde_SOC
+                else:
+                    # Zoek afstand
+                    match = df_afstand[
+                        (df_afstand['startlocatie'] == row['startlocatie']) & 
+                        (df_afstand['eindlocatie'] == row['eindlocatie']) & 
+                        ((df_afstand['buslijn'] == row['buslijn']) | df_afstand['buslijn'].isna())
+                    ]
+                    afstand_m = match.iloc[0]['afstand in meters'] if not match.empty else 0
+                    afstand_km = afstand_m / 1000  # Omzetten naar kilometers
+
+                    # Bereken energieverbruik
+                    energieverbruik = afstand_km * energieverbruik_per_km
             
-                # Zoek afstand
-                match = df_afstand[
-                    (df_afstand['startlocatie'] == row['startlocatie']) & 
-                    (df_afstand['eindlocatie'] == row['eindlocatie']) & 
-                    ((df_afstand['buslijn'] == row['buslijn']) | df_afstand['buslijn'].isna())
-                ]
-                afstand_m = match.iloc[0]['afstand in meters'] if not match.empty else 0
-                afstand_km = afstand_m / 1000  # Omzetten naar kilometers
-            
-                # Bereken energieverbruik
-                energieverbruik = afstand_km * energieverbruik_per_km
-            
-                # Trek energieverbruik af van SOC
-                SOC -= energieverbruik
+                    # Trek energieverbruik af van SOC
+                    SOC -= energieverbruik
             
                 # Sla SOC-waarde op
                 soc_waarden.append(SOC)
                 df_planning.at[i, 'SOC'] = SOC
-            
+        
                 # Controleer de SOC-grenzen
                 if SOC < min_waarde_SOC:
                     if not warning:
-                        st.error(f'There are intervals where a bus is below the minimum SOC value.')
+                        print(f'There are intervals where a bus is below the minimum SOC value.')
                         warning = True
                     fouten = True
                     overschrijdingen.append({
                         'rij_index': i,
                         'omloopnummer': omloop,
-                        'afstand_km': afstand_km,
-                        'energieverbruik': energieverbruik,
                         'SOC': SOC
                     })
-                    # Reset SOC na overschrijding
-                    SOC = MAX_waarde_SOC
-        
+
+    
             # Sla SOC-waarden per omloop op
             soc_per_omloop[omloop] = soc_waarden
-    
+
         df_overschrijdingen = pd.DataFrame(overschrijdingen)
-    
+
         return df_overschrijdingen, fouten, soc_per_omloop
+    
 
     # Interface met Streamlit
     energieverbruik_per_km = st.number_input("Energy consumption per km (kWh)", min_value=0.1, value=2.5)
@@ -141,11 +142,12 @@ def run():
     # Plot van SOC-waarden voor geselecteerde omloop
     fig, ax = plt.subplots()
     ax.plot(range(len(soc_per_omloop[omloop_selectie])), soc_per_omloop[omloop_selectie], label=f'Theoretische SOC waarde - Omloop {omloop_selectie}', linestyle='-', marker='o')
-    ax.axhline(y=min_waarde_SOC, color='r', linestyle='--', label='Minimale SOC (30)')
+    ax.axhline(y=min_waarde_SOC, color='r', linestyle='--', label=f'Minimale SOC ({int(min_waarde_SOC)})')
+    ax.axhline(y=max_verbruik, color='r', linestyle='--', label=f'Maximale SOC ({int(max_verbruik)})')
     ax.set_xlabel("Index")
     ax.set_ylabel("SOC waarde (kWh)")
     ax.set_title(f"Theoretische SOC waarde voor Omloop {omloop_selectie}")
-    ax.legend(loc="upper right")  # Legenda rechtsboven
+    ax.legend(loc="lower right")  # Legenda plaats
     st.pyplot(fig)
 
 
@@ -202,9 +204,10 @@ def run():
 
         return df_korte_oplaadtijden, warning
 
-
+    
+    min_oplaadtijd = st.number_input("Minimal charge time", min_value=0.1, value=15.0)
     # Voorbeeld van het gebruik van de functie:
-    df_korte_oplaadtijden, waarschuwing = controleer_oplaadtijd(df_planning)
+    df_korte_oplaadtijden, waarschuwing = controleer_oplaadtijd(df_planning,min_oplaadtijd)
 
     # Toon de DataFrame met korte oplaadtijden als er fouten zijn
     if not df_korte_oplaadtijden.empty:
@@ -216,43 +219,39 @@ def run():
         """
         Controleert of de eindlocatie van de vorige rij gelijk is aan de startlocatie van de huidige rij,
         per uniek omloopnummer en gesorteerd op de kolom 'index'.
-        
-        Parameters:
+    
+        Parameters:r
         - df_planning (pd.DataFrame): De input DataFrame met omloopnummers en locaties.
-        
+    
         Returns:
         - verspringingen (pd.DataFrame): DataFrame met rijen waarin de bus van locatie verspringt.
         - waarschuwing (bool): Geeft aan of er een waarschuwing is (True als er verspringingen zijn, anders False).
         """
         verspringingen = []  # Lijst om rijen met verspringingen op te slaan
         waarschuwing = False
-    
-        # Loop door unieke omloopnummers
+
         for omloop in df_planning['omloopnummer'].unique():
-            # Filter de DataFrame op het huidige omloopnummer en sorteer op 'index'
-            df_omloop = df_planning[df_planning['omloopnummer'] == omloop].sort_values(by='starttijd')
-    
-            # Loop door de gefilterde DataFrame en controleer locaties
-            for i in range(1, len(df_omloop)):
-                vorige_rij = df_omloop.iloc[i - 1]
-                huidige_rij = df_omloop.iloc[i]
-    
-                # Controleer of de eindlocatie van de vorige rij gelijk is aan de startlocatie van de huidige rij
-                if vorige_rij['eindlocatie'] != huidige_rij['startlocatie']:
-                    if not waarschuwing:
-                        st.warning("Bus jumps location!")
+            df_omloop = df_planning[df_planning['omloopnummer'] == omloop].sort_values(by='index')
+            vorige_rij = None
+        
+            for i, huidige_rij in df_omloop.iterrows():
+                if vorige_rij is not None:
+                    if vorige_rij['eindlocatie'] != huidige_rij['startlocatie']:
+                        print("Bus jumps location!")
                         waarschuwing = True
-                    verspringingen.append({
-                        'omloopnummer': omloop,
-                        'index_huidige_rij': huidige_rij['index'],
-                        'vorige_eindlocatie': vorige_rij['eindlocatie'],
-                        'huidige_startlocatie': huidige_rij['startlocatie']
-                    })
+                        verspringingen.append({
+                            'omloopnummer': omloop,
+                            'index_huidige_rij': huidige_rij['index'],
+                            'vorige_eindlocatie': vorige_rij['eindlocatie'],
+                            'huidige_startlocatie': huidige_rij['startlocatie']
+                        })
+                vorige_rij = huidige_rij
 
         # Maak een DataFrame met alle verspringingen
         verspringingen_df = pd.DataFrame(verspringingen)
 
         return verspringingen_df, waarschuwing
+    
 
 
     # Voorbeeld gebruik:
