@@ -7,127 +7,98 @@ def run():
     st.title("Analyze Bus Planning and Time Table")
     st.write("Welcome to the Home Page!")
 
-    # Check if the necessary DataFrames are stored in session_state
     if 'df_planning' not in st.session_state:
         st.warning("Please upload both 'Bus Planning' and 'Time Table' in to the sidebar to continue.")
-
         return
-    
+
     df_planning = st.session_state.df_planning
     df_afstand = st.session_state.df_afstanden
     df_tijden = st.session_state.df_tijden
+
     df_planning.rename(columns={'omloop nummer': 'omloopnummer'}, inplace=True)
     df_planning.rename(columns={'Unnamed: 0': 'index'}, inplace=True)
-    # Stukje met 'boolean index maken om hierbij aan te geven of de planning voldoet'
-    #st.success('Wow')
-    #st.warning('Je bus omloop voldoet niet aan de omgangs eisen')
 
-
-# Voeg een kolom toe met "absolute tijd" in minuten sinds middernacht
     def bereken_absolute_tijd(df):
-        # Omzetten naar datetime.time als dat nog niet gebeurd is
-        df['starttijd'] = pd.to_datetime(df['starttijd'], format='%H:%M:%S').dt.time
-        df['eindtijd'] = pd.to_datetime(df['eindtijd'], format='%H:%M:%S').dt.time
+        # Combineer tijd met datum voor julian date berekening
+        df['starttijd'] = pd.to_datetime(df['starttijd datum'])
+        df['eindtijd'] = pd.to_datetime(df['eindtijd datum'])
 
-        def tijd_naar_minuten(tijd):
-            return tijd.hour * 60 + tijd.minute
+        # Zet om naar juliandate
+        df['starttijd_jd'] = df['starttijd'].apply(lambda x: x.to_julian_date())
+        df['eindtijd_jd'] = df['eindtijd'].apply(lambda x: x.to_julian_date())
 
-        df['starttijd_min'] = df['starttijd'].apply(tijd_naar_minuten)
-        df['eindtijd_min'] = df['eindtijd'].apply(tijd_naar_minuten)
+        # Voeg kolommen in minuten toe (sinds begin van dataset)
+        ref_start = df['starttijd_jd'].min()
+        df['starttijd_min'] = (df['starttijd_jd'] - ref_start) * 24 * 60
+        df['eindtijd_min'] = (df['eindtijd_jd'] - ref_start) * 24 * 60
 
-        # Voeg 24 uur toe aan eindtijd als deze vóór starttijd ligt (over middernacht)
-        df['eindtijd_min'] = df.apply(
-            lambda row: row['eindtijd_min'] + 1440 if row['eindtijd_min'] < row['starttijd_min'] else row['eindtijd_min'],
-            axis=1
-        )
+        # Bereken reistijd correct
+        df['reistijd_min'] = df['eindtijd_min'] - df['starttijd_min']
 
-        # Sorteer op starttijd_min en eindtijd_min
+        # Sorteer correct op tijd en index
         df = df.sort_values(by=['starttijd_min', 'eindtijd_min', 'index']).reset_index(drop=True)
         return df
 
-    # Bereken absolute tijd en sorteer
     df_planning = bereken_absolute_tijd(df_planning)
+    df_planning = sorteer_planning_per_omloop(df_planning)
 
+    verspringingen_df, waarschuwing = controleer_verspringende_locaties_per_omloop_met_datum(df_planning)
 
-    # Moeten hier nog toevoegen dat wanneer de bus bij een oplaad stuk is dat hij dan oplaad, en dan die waarde er wel bij toevoegen
-    # Nu staat het als theoretische waarde, dus wanneer die overschreid zet index terug naar MAX_waar_SOC
-    def controleer_soc_grenzen(df_planning, df_afstand, energieverbruik_per_km=2.5, MAX_waarde_SOC=270, min_waarde_SOC=30):
-        """
-        Controleert de SOC-waarden op basis van theoretisch energieverbruik berekend met afstand.
+    if waarschuwing:
+        st.warning("Bussen teleporteren onverwacht tussen locaties:")
+        st.dataframe(verspringingen_df)
+    else:
+        st.success("Geen teleportaties gedetecteerd. Alle overgangen zijn logisch.")
 
-        Parameters:
-        - df_planning (pd.DataFrame): De input DataFrame met de planning.
-        - df_afstand (pd.DataFrame): DataFrame met afstanden tussen locaties.
-        - energieverbruik_per_km (float): Verbruik in kWh per km.
-        - MAX_waarde_SOC (float): Maximale SOC-waarde.
-        - min_waarde_SOC (float): Minimale SOC-waarde.
-
-        Returns:
-        - df_overschrijdingen (pd.DataFrame): DataFrame met rijen waarin de SOC wordt overschreden.
-        - soc_per_omloop (dict): Dictionary met SOC-waarden per omloopnummer.
-        """
-        soc_per_omloop = {}
-        df_planning['SOC'] = 0  # Voeg een SOC-kolom toe
-        overschrijdingen = []
-        fouten = False
-        warning = False
-    
-        for omloop in df_planning['omloopnummer'].unique():
-            SOC = MAX_waarde_SOC
-            soc_waarden = []
-    
-            for i, row in df_planning[df_planning['omloopnummer'] == omloop].iterrows():
-            # Absolute waarde optellen als de bus aan het opladen is
-                if row['activiteit'] == 'opladen':
-                    SOC += abs(row['energieverbruik'])  # Absolute waarde optellen
-                    if SOC > MAX_waarde_SOC:
-                        SOC = MAX_waarde_SOC  # Beperk SOC tot MAX_waarde_SOC
-                else:
-                    # Zoek afstand
-                    match = df_afstand[
-                        (df_afstand['startlocatie'] == row['startlocatie']) & 
-                        (df_afstand['eindlocatie'] == row['eindlocatie']) & 
-                        ((df_afstand['buslijn'] == row['buslijn']) | df_afstand['buslijn'].isna())
-                    ]
-                    afstand_m = match.iloc[0]['afstand in meters'] if not match.empty else 0
-                    afstand_km = afstand_m / 1000  # Omzetten naar kilometers
-
-                    # Bereken energieverbruik
-                    energieverbruik = afstand_km * energieverbruik_per_km
-            
-                    # Trek energieverbruik af van SOC
-                    SOC -= energieverbruik
-            
-                # Sla SOC-waarde op
-                soc_waarden.append(SOC)
-                df_planning.at[i, 'SOC'] = SOC
-        
-                # Controleer de SOC-grenzen
-                if SOC < min_waarde_SOC:
-                    if not warning:
-                        print(f'There are intervals where a bus is below the minimum SOC value.')
-                        warning = True
-                    fouten = True
-                    overschrijdingen.append({
-                        'rij_index': i,
-                        'omloopnummer': omloop,
-                        'SOC': SOC
-                    })
-
-    
-            # Sla SOC-waarden per omloop op
-            soc_per_omloop[omloop] = soc_waarden
-
-        df_overschrijdingen = pd.DataFrame(overschrijdingen)
-
-        return df_overschrijdingen, fouten, soc_per_omloop
-    
-
-    # Interface met Streamlit
     energieverbruik_per_km = st.number_input("Energy consumption per km (kWh)", min_value=0.1, value=2.5)
     max_verbruik = st.number_input("Maximal consumption per bus (kWh)", min_value=1.0, value=270.0)
     min_waarde_SOC = st.number_input("Minimal SOC-value", min_value=1.0, value=30.0)
-    df_overschrijdingen, fouten, soc_per_omloop = controleer_soc_grenzen(df_planning, df_afstand, energieverbruik_per_km, max_verbruik)
+
+    df_planning['starttijd'] = pd.to_datetime(df_planning['starttijd'], format='%H:%M:%S')
+    df_planning['eindtijd'] = pd.to_datetime(df_planning['eindtijd'], format='%H:%M:%S')
+
+    def controleer_soc_grenzen(df_planning, df_afstand, energieverbruik_per_km, MAX_waarde_SOC, min_waarde_SOC):
+        soc_per_omloop = {}
+        df_planning['SOC'] = 0
+        overschrijdingen = []
+        fouten = False
+        warning = False
+
+        for omloop in df_planning['omloopnummer'].unique():
+            SOC = MAX_waarde_SOC
+            soc_waarden = []
+
+            for i, row in df_planning[df_planning['omloopnummer'] == omloop].iterrows():
+                if row['activiteit'] == 'opladen':
+                    SOC += abs(row['energieverbruik'])
+                    SOC = min(SOC, MAX_waarde_SOC)
+                else:
+                    match = df_afstand[
+                        (df_afstand['startlocatie'] == row['startlocatie']) &
+                        (df_afstand['eindlocatie'] == row['eindlocatie']) &
+                        ((df_afstand['buslijn'] == row['buslijn']) | df_afstand['buslijn'].isna())
+                    ]
+                    afstand_m = match.iloc[0]['afstand in meters'] if not match.empty else 0
+                    afstand_km = afstand_m / 1000
+                    SOC -= afstand_km * energieverbruik_per_km
+
+                soc_waarden.append(SOC)
+                df_planning.at[i, 'SOC'] = SOC
+
+                if SOC < min_waarde_SOC:
+                    if not warning:
+                        st.error("SOC below minimum value!")
+                        warning = True
+                    fouten = True
+                    overschrijdingen.append({'rij_index': i, 'omloopnummer': omloop, 'SOC': SOC})
+
+            soc_per_omloop[omloop] = soc_waarden
+
+        return pd.DataFrame(overschrijdingen), fouten, soc_per_omloop
+
+    df_overschrijdingen, fouten, soc_per_omloop = controleer_soc_grenzen(
+        df_planning, df_afstand, energieverbruik_per_km, max_verbruik, min_waarde_SOC
+    )
 
     if fouten:
         with st.expander("Click for more information"):
@@ -136,10 +107,8 @@ def run():
     else:
         st.success('Alles in orde! Geen SOC-overschrijdingen.')
 
-    # Selectie van omloopnummer voor plot
     omloop_selectie = st.selectbox("Selecteer een omloopnummer om SOC te bekijken", list(soc_per_omloop.keys()))
 
-    # Plot van SOC-waarden voor geselecteerde omloop
     fig, ax = plt.subplots()
     ax.plot(range(len(soc_per_omloop[omloop_selectie])), soc_per_omloop[omloop_selectie], label=f'Theoretische SOC waarde - Omloop {omloop_selectie}', linestyle='-', marker='o')
     ax.axhline(y=min_waarde_SOC, color='r', linestyle='--', label=f'Minimale SOC ({int(min_waarde_SOC)})')
@@ -147,46 +116,20 @@ def run():
     ax.set_xlabel("Index")
     ax.set_ylabel("SOC waarde (kWh)")
     ax.set_title(f"Theoretische SOC waarde voor Omloop {omloop_selectie}")
-    ax.legend(loc="lower right")  # Legenda plaats
+    ax.legend(loc="lower right")
     st.pyplot(fig)
 
+    def controleer_oplaadtijd(df, min_oplaadtijd):
+        warning = False
+        korte_oplaadtijden = []
 
-
-
-
-    
-
-
-    def controleer_oplaadtijd(df_planning, min_oplaadtijd=15):
-        """
-        Controleert de opladenstijd en geeft een waarschuwing als deze korter is dan de minimale tijd.
-        
-        Parameters:
-        - df_planning (pd.DataFrame): De input DataFrame met de planning en energieverbruik.
-        - min_oplaadtijd (int): De minimale vereiste opladenstijd in minuten.
-    
-        Returns:
-        - df_korte_oplaadtijden (pd.DataFrame): DataFrame met rijen waar de oplaadtijd korter is dan de minimale tijd.
-        - waarschuwing (bool): Geeft aan of er een waarschuwing is gegeven (True als er fouten zijn, anders False).
-        """
-        # Omzetten naar datetime als de tijden in stringformaat zijn
-        df_planning['starttijd'] = pd.to_datetime(df_planning['starttijd'], format='%H:%M:%S')
-        df_planning['eindtijd'] = pd.to_datetime(df_planning['eindtijd'], format='%H:%M:%S')
-
-        warning = False  # Variabele om te controleren of de waarschuwing al is gegeven
-        korte_oplaadtijden = []  # Lijst om kortere oplaadtijden op te slaan
-
-        # Loop door de DataFrame om de opladenstijd te berekenen
-        for i, row in df_planning.iterrows():
+        for i, row in df.iterrows():
             if row['energieverbruik'] <= 0:
-                # Bereken de oplaadtijd in minuten
-                oplaad_tijd = (row['eindtijd'] - row['starttijd']).total_seconds() / 60  # Omzetten naar minuten
-    
-                # Controleer of de opladingstijd kleiner is dan de minimale oplaadtijd
+                oplaad_tijd = (row['eindtijd'] - row['starttijd']).total_seconds() / 60
                 if oplaad_tijd <= min_oplaadtijd:
                     if not warning:
-                        st.error(f'Error charing time is less than {min_oplaadtijd} minutes!')
-                        warning = True  # Waarschuwing maar één keer tonen
+                        st.error(f'Charging time is less than {min_oplaadtijd} minutes!')
+                        warning = True
                     korte_oplaadtijden.append({
                         'rij_index': i,
                         'starttijd': row['starttijd'].strftime('%H:%M:%S'),
@@ -195,267 +138,115 @@ def run():
                         'oplaadtijd': oplaad_tijd
                     })
 
-        # Maak een DataFrame met alleen de kortere oplaadtijden
-        df_korte_oplaadtijden = pd.DataFrame(korte_oplaadtijden)
-    
-        # Toon de succesmelding als er geen korte oplaadtijden zijn
         if not warning:
-            st.success(f' Everything is fine! There are no charging time shorter than {min_oplaadtijd} minutes.')
+            st.success(f'Everything is fine! No charging times shorter than {min_oplaadtijd} minutes.')
 
-        return df_korte_oplaadtijden, warning
+        return pd.DataFrame(korte_oplaadtijden), warning
 
-    
     min_oplaadtijd = st.number_input("Minimal charge time", min_value=0.1, value=15.0)
-    # Voorbeeld van het gebruik van de functie:
-    df_korte_oplaadtijden, waarschuwing = controleer_oplaadtijd(df_planning,min_oplaadtijd)
-
-    # Toon de DataFrame met korte oplaadtijden als er fouten zijn
+    df_korte_oplaadtijden, waarschuwing = controleer_oplaadtijd(df_planning, min_oplaadtijd)
     if not df_korte_oplaadtijden.empty:
-        st.dataframe(df_korte_oplaadtijden)  # Alleen tonen als er korte oplaadtijden zijn
-    
-    
+        st.dataframe(df_korte_oplaadtijden)
 
-    def controleer_verspringende_locaties_per_omloop(df_planning):
-        """
-        Controleert of de eindlocatie van de vorige rij gelijk is aan de startlocatie van de huidige rij,
-        per uniek omloopnummer en gesorteerd op de kolom 'index'.
-    
-        Parameters:r
-        - df_planning (pd.DataFrame): De input DataFrame met omloopnummers en locaties.
-    
-        Returns:
-        - verspringingen (pd.DataFrame): DataFrame met rijen waarin de bus van locatie verspringt.
-        - waarschuwing (bool): Geeft aan of er een waarschuwing is (True als er verspringingen zijn, anders False).
-        """
-        verspringingen = []  # Lijst om rijen met verspringingen op te slaan
-        waarschuwing = False
-
-        for omloop in df_planning['omloopnummer'].unique():
-            df_omloop = df_planning[df_planning['omloopnummer'] == omloop].sort_values(by='index')
-            vorige_rij = None
-        
-            for i, huidige_rij in df_omloop.iterrows():
-                if vorige_rij is not None:
-                    if vorige_rij['eindlocatie'] != huidige_rij['startlocatie']:
-                        st.warning("Bus jumps location!")
-                        waarschuwing = True
-                        verspringingen.append({
-                            'omloopnummer': omloop,
-                            'index_huidige_rij': huidige_rij['index'],
-                            'vorige_eindlocatie': vorige_rij['eindlocatie'],
-                            'huidige_startlocatie': huidige_rij['startlocatie']
-                        })
-                vorige_rij = huidige_rij
-
-        # Maak een DataFrame met alle verspringingen
-        verspringingen_df = pd.DataFrame(verspringingen)
-
-        return verspringingen_df, waarschuwing
-    
-
-
-    # Voorbeeld gebruik:
-    verspringingen_df, waarschuwing = controleer_verspringende_locaties_per_omloop(df_planning)
-
-    # Toon de resultaten
-    if not verspringingen_df.empty:
-        st.dataframe(verspringingen_df)  # Alleen tonen als er verspringingen zijn
-    else:
-        st.success('Everything is fine there are no busses jumping from location!')
-
-
-
-
-
-    # Functie om gemiste bussen te controleren
-    def check_missed_buses(df_tijden, df_planning):
-        """
-        Controleert of alle vertrektijden uit df_tijden aanwezig zijn in de geplande dienst ritten van df_planning.
-        Als een vertrektijd uit df_tijden ontbreekt in df_planning, wordt dit beschouwd als een gemiste rit.
-
-        Parameters:
-            df_tijden (pd.DataFrame): DataFrame met de verwachte dienstregeling (vertrektijden).
-            df_planning (pd.DataFrame): DataFrame met de geplande ritten.
-
-        Returns:
-            pd.DataFrame: DataFrame met gemiste ritten.
-        """
-        if df_tijden.empty or df_planning.empty:
-            return pd.DataFrame()  # Geen data beschikbaar, dus geen check nodig
-
-        # Filter alleen de dienst ritten uit df_planning
-        dienst_ritten = df_planning[df_planning['activiteit'] == 'dienst rit']
-
-    # Zet de vertrektijden uit beide bestanden in hetzelfde tijdformaat
-        df_tijden['vertrektijd'] = pd.to_datetime(df_tijden['vertrektijd'], format='%H:%M').dt.time
-        dienst_ritten['starttijd'] = pd.to_datetime(dienst_ritten['starttijd'], format='%H:%M:%S').dt.time
-
-        # Controleer of alle vertrektijden uit df_tijden terugkomen als starttijd bij dienst ritten
-        missing_times = []
-        for _, row in df_tijden.iterrows():
-            if not ((dienst_ritten['starttijd'] == row['vertrektijd']) & 
-                    (dienst_ritten['startlocatie'] == row['startlocatie']) & 
-                    (dienst_ritten['eindlocatie'] == row['eindlocatie']) & 
-                    (dienst_ritten['buslijn'] == row['buslijn'])).any():
-                missing_times.append(row.to_dict())
-
-        # Maak een DataFrame met de gemiste bussen
-        missed_buses_df = pd.DataFrame(missing_times)
-
-        return missed_buses_df  # Retourneer de gemiste bussen
-
-    # Voer de controle uit
-    missed_stations_df = check_missed_buses(df_tijden, df_planning)
-
-
-
-    # Controleer of er gemiste stations zijn en toon foutmelding
-    if not missed_stations_df.empty:
-        st.error("Busstation are missed! See the table below for more information.")
-        st.dataframe(missed_stations_df)
-    else:
-        st.success("All the buses comply to the schedule!")
-
-
-
-    
     def check_dienst_ritten_reistijd(df_planning, df_afstand):
-        """
-    Controleert of de reistijd voor de dienst ritten uit df_planning binnen de opgegeven min en max reistijd uit df_afstand valt.
-    Als een rit buiten de limieten valt, wordt dit beschouwd als een ongeldige rit.
-
-    Parameters:
-        df_planning (pd.DataFrame): DataFrame met de geplande ritten.
-        df_afstand (pd.DataFrame): DataFrame met de min en max reistijden voor verschillende ritten.
-
-    Returns:
-        pd.DataFrame: DataFrame met ongeldige ritten.
-        """
-
-    # Filter alleen de dienst ritten uit df_planning
         dienst_ritten = df_planning[df_planning['activiteit'] == 'dienst rit']
-    
-    # Zet de start- en eindtijd om naar datetime als ze nog niet in dat formaat staan
         dienst_ritten['starttijd'] = pd.to_datetime(dienst_ritten['starttijd'])
         dienst_ritten['eindtijd'] = pd.to_datetime(dienst_ritten['eindtijd'])
-    
-    # Bereken de reistijd in minuten
         dienst_ritten['reistijd_min'] = (dienst_ritten['eindtijd'] - dienst_ritten['starttijd']).dt.total_seconds() / 60
-    
-    # Lijst voor ongeldige ritten
-        invalid_rides = []
 
-    # Loop door elke rit en controleer of de reistijd binnen de min/max limieten valt
+        invalid_rides = []
         for _, row in dienst_ritten.iterrows():
-        # Zoek naar de overeenkomstige startlocatie, eindlocatie en buslijn in de afstandmatrix
             match = df_afstand[(df_afstand['startlocatie'] == row['startlocatie']) &
-                            (df_afstand['eindlocatie'] == row['eindlocatie']) &
-                            (df_afstand['buslijn'] == row['buslijn'])]
-        
+                               (df_afstand['eindlocatie'] == row['eindlocatie']) &
+                               (df_afstand['buslijn'] == row['buslijn'])]
             if not match.empty:
-                # Haal de min- en max reistijd op uit de afstandmatrix
                 min_time, max_time = match.iloc[0]['min reistijd in min'], match.iloc[0]['max reistijd in min']
-            
-            # Vergelijk de reistijd met de limieten
                 if not (min_time <= row['reistijd_min'] <= max_time):
                     invalid_rides.append(row.to_dict())
 
-    # Maak een DataFrame van de ongeldige ritten
-        invalid_rides_df = pd.DataFrame(invalid_rides)
+        return pd.DataFrame(invalid_rides)
 
-        return invalid_rides_df  # Retourneer de ongeldige ritten
-
-# Streamlit-code (buiten de functie):
-
-# Aanroepen van de functie en resultaat ontvangen
     invalid_rides_df = check_dienst_ritten_reistijd(df_planning, df_afstand)
-
-# Controleer of er ongeldige ritten zijn en toon foutmelding
     if not invalid_rides_df.empty:
         st.warning("De volgende dienst ritten vallen buiten de reistijdslimieten:")
         st.dataframe(invalid_rides_df)
     else:
         st.success("Alle dienst ritten vallen binnen de reistijdslimieten.")
 
-
-    def eindtijd_groter_startijd(df):
-        waarschuwing = False 
+    def eindtijd_groter_starttijd(df):
+        waarschuwing = False
         tijd_controle = []
-        for i, row in df.iterrows(): 
+        for i, row in df.iterrows():
             if row['eindtijd_min'] < row['starttijd_min']:
                 if not waarschuwing:
-                    st.warning("Eindtijd > Startijd")
+                    st.warning("Eindtijd ligt vóór starttijd (zonder middernacht)")
                     waarschuwing = True
                 tijd_controle.append({
                     'omloopnummer': row['omloopnummer'],
                     'index_huidige_rij': row['index'],
                     'eindtijd': row['eindtijd_min'],
-                    'startijd': row['starttijd_min']
-                    })   
-        tijd_controle = pd.DataFrame(tijd_controle)
-        
-        return tijd_controle, waarschuwing
-    
-    tijd_controle, waarschuwing =eindtijd_groter_startijd(df_planning)  
+                    'starttijd': row['starttijd_min']
+                })
+        return pd.DataFrame(tijd_controle), waarschuwing
 
+    tijd_controle, waarschuwing = eindtijd_groter_starttijd(df_planning)
     if not tijd_controle.empty:
         st.dataframe(tijd_controle)
     else:
-        st.success('Everything is fine! No end time greater than starttime')    
+        st.success("Everything is fine! No end time greater than start time")
 
+    if not df_planning.empty:
+        fig = px.timeline(
+            df_planning,
+            x_start='starttijd datum',
+            x_end='eindtijd datum',
+            y='omloopnummer',
+            color='activiteit'
+        )
+        fig.update_yaxes(tickmode='linear', tick0=1, dtick=1, autorange='reversed')
+        fig.update_xaxes(tickformat='%H:%M')
+        fig.update_layout(title="Gantt Chart for Bus Line")
+        st.plotly_chart(fig)
+    else:
+        st.write("No data available for bus line")
 
-                    # Controleer of de gefilterde data niet leeg is
-        if not df_planning.empty:
-            # Maak de Gantt Chart
-            fig = px.timeline(
-                df_planning, 
-                x_start='starttijd datum', 
-                x_end='eindtijd datum', 
-                y='omloopnummer', 
-                color='activiteit'
-            )
-            fig.update_yaxes(tickmode='linear', tick0=1, dtick=1, autorange='reversed', showgrid=True, gridcolor='lightgray', gridwidth=1)
-            fig.update_xaxes(tickformat='%H:%M', showgrid=True, gridcolor='lightgray', gridwidth=1)
-            fig.update_layout(
-                title=dict(text=f'Gantt Chart for Bus Line ', font=dict(size=30))
-            )
-            fig.update_layout(legend=dict(yanchor='bottom', y=0.01, xanchor='right', x=0.999))
-    
-            # Toon de plot in Streamlit
-            st.plotly_chart(fig)
-        else:
-            st.write(f"No data available for bus line ")
+def sorteer_planning_per_omloop(df):
+    df = df.copy()
+    df['starttijd datum'] = pd.to_datetime(df['starttijd datum'])
+    df['eindtijd datum'] = pd.to_datetime(df['eindtijd datum'])
+    df = df.sort_values(by=['omloopnummer', 'starttijd datum', 'eindtijd datum']).reset_index(drop=True)
+    df['index'] = df.index
+    return df
 
+def controleer_verspringende_locaties_per_omloop_met_datum(df):
+    df = df.copy()
+    verspringingen = []
+    waarschuwing = False
 
+    df['startlocatie'] = df['startlocatie'].str.strip().str.lower()
+    df['eindlocatie'] = df['eindlocatie'].str.strip().str.lower()
 
-#SOC waarden 
-# Veiligheidsmarge
-# Oplaadtijden
-# Consistenties
-# Bussen niet teleporteren/ opsplittsen 
-# accucapiciteit van 300KWu
-# State of health (SOH) 85-95%
-#oplaad tempo 450Kw opgeladen tot 90% Minstens 15 minuten achter elkaar opladen
-# Gemiddelde verbruik ligt tussen 0.7 en 2.5 als die stil staat op 0.01
-# 10% van de accucapiciteit als veiligheidsmarge
+    for omloop in df['omloopnummer'].unique():
+        df_omloop = df[df['omloopnummer'] == omloop].sort_values(by='index')
+        vorige_rij = None
 
-# Plan van aanpak. 
-# Variable creeren SOC die de waarde aanhoud van de accu. We kunnen dan de rest van de waardes invoeren
-# En de meegegeven parameters hanteren. Tijdens onze planning wordt deze variable dan bij gehouden. Wordt dit overschreden geeft dit een melding. 
-# Voor zowel de onder of bovengrens hierbij is dan te zien wanneer dit gebeurd en wordt dit rood. Dit is onderdeel een van de omloop checker. 
+        for _, huidige_rij in df_omloop.iterrows():
+            if vorige_rij is not None:
+                mag_verspringen = (
+                    pd.to_datetime(huidige_rij['starttijd datum']).date() >
+                    pd.to_datetime(vorige_rij['starttijd datum']).date()
+                )
 
-# Deel 2 
-# We moeten ook voldoen aan alle parameters die we net hebben opgenoemd ik denk dat het goed is als we hier ook een def van moeten maken. Zo kunnen we 
-# De waardes van ook zowel de oplaadtijden controleren. Wat hier nog meer in moet komen te staan is later te benaderen. 
-# 15 minuten achter elkaar opladen bijhouden doormiddel van pdatetime had in de oude project al 
-# Schema gemaakt met wanneer die die waarde benaderde en dat kun je dan invullen. 
-# Hierdoor zal de rit er waarschijnlijk wel langer over doen en pas je de planning al aan wat lastig is 
-# Dus moet een vorm vinden waardoor het alleen een checker is en het niet aan zou passen. 
-# Trouwens de SOC telt nu al het opladen er bij dus zou alleen nog maar moeten checken of die 15 min oplaad
+                if (vorige_rij['eindlocatie'] != huidige_rij['startlocatie']) and not mag_verspringen:
+                    verspringingen.append({
+                        'omloopnummer': omloop,
+                        'index_huidige_rij': huidige_rij['index'],
+                        'vorige_eindlocatie': vorige_rij['eindlocatie'],
+                        'huidige_startlocatie': huidige_rij['startlocatie'],
+                        'starttijd_datum': huidige_rij['starttijd datum'],
+                        'vorige_starttijd_datum': vorige_rij['starttijd datum']
+                    })
+                    waarschuwing = True
+            vorige_rij = huidige_rij
 
-# Deel 3
-# Zorgen dat de bus op dezelfde omloop blijft rijden en niet teleporteert van locatie naar locatie
-# Hoe we dit moeten doen weet ik nog niet zeker. Mis is het handig om te checken of de rit tijden voldoen.
-# Het omloop nummer mee te geven en te kijken of die bus ook logische route hanteert door dit te plotten per bus omloop?
-
- 
+    return pd.DataFrame(verspringingen), waarschuwing
