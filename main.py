@@ -12,7 +12,7 @@ st.sidebar.title("Navigation")
 # Define the pages
 pages = {
     'Home': 'V',
-    'Improved Scheduling': 'ImprovedScheduling',
+    'Improved Schedule': 'ImprovedScheduling',
     'Uploaded Data': 'UploadedData'
 }
 

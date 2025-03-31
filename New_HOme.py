@@ -128,7 +128,7 @@ def run():
                 oplaad_tijd = (row['eindtijd'] - row['starttijd']).total_seconds() / 60
                 if oplaad_tijd <= min_oplaadtijd:
                     if not warning:
-                        st.error(f'Charging time is less than {min_oplaadtijd} minutes!')
+                        st.warning(f'Charging time is less or same than {min_oplaadtijd} minutes!')
                         warning = True
                     korte_oplaadtijden.append({
                         'rij_index': i,
@@ -143,7 +143,7 @@ def run():
 
         return pd.DataFrame(korte_oplaadtijden), warning
 
-    min_oplaadtijd = st.number_input("Minimal charge time", min_value=0.1, value=15.0)
+    min_oplaadtijd = st.number_input("Minimal charge time", min_value=0.1, value=10.0)
     df_korte_oplaadtijden, waarschuwing = controleer_oplaadtijd(df_planning, min_oplaadtijd)
     if not df_korte_oplaadtijden.empty:
         st.dataframe(df_korte_oplaadtijden)
