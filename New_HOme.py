@@ -18,6 +18,7 @@ def run():
     df_planning.rename(columns={'omloop nummer': 'omloopnummer'}, inplace=True)
     df_planning.rename(columns={'Unnamed: 0': 'index'}, inplace=True)
 
+   
     def bereken_absolute_tijd(df):
         # Combineer tijd met datum voor julian date berekening
         df['starttijd'] = pd.to_datetime(df['starttijd datum'])
@@ -39,16 +40,9 @@ def run():
         df = df.sort_values(by=['starttijd_min', 'eindtijd_min', 'index']).reset_index(drop=True)
         return df
 
-    df_planning = bereken_absolute_tijd(df_planning)
-    df_planning = sorteer_planning_per_omloop(df_planning)
+    df_absolute_planning = bereken_absolute_tijd(df_planning)
 
-    verspringingen_df, waarschuwing = controleer_verspringende_locaties_per_omloop_met_datum(df_planning)
 
-    if waarschuwing:
-        st.warning("Bussen teleporteren onverwacht tussen locaties:")
-        st.dataframe(verspringingen_df)
-    else:
-        st.success("Geen teleportaties gedetecteerd. Alle overgangen zijn logisch.")
 
     energieverbruik_per_km = st.number_input("Energy consumption per km (kWh)", min_value=0.1, value=2.5)
     max_verbruik = st.number_input("Maximal consumption per bus (kWh)", min_value=1.0, value=270.0)
@@ -105,9 +99,9 @@ def run():
             st.write("The following rows have errors or violations:")
             st.dataframe(df_overschrijdingen)
     else:
-        st.success('Alles in orde! Geen SOC-overschrijdingen.')
+        st.success("Everything is fine! No SOC violations.")
 
-    omloop_selectie = st.selectbox("Selecteer een omloopnummer om SOC te bekijken", list(soc_per_omloop.keys()))
+    omloop_selectie = st.selectbox("Select a route number to view corresponding SOC.", list(soc_per_omloop.keys()))
 
     fig, ax = plt.subplots()
     ax.plot(range(len(soc_per_omloop[omloop_selectie])), soc_per_omloop[omloop_selectie], label=f'Theoretische SOC waarde - Omloop {omloop_selectie}', linestyle='-', marker='o')
@@ -148,7 +142,7 @@ def run():
     if not df_korte_oplaadtijden.empty:
         st.dataframe(df_korte_oplaadtijden)
 
-    def check_dienst_ritten_reistijd(df_planning, df_afstand):
+    def check_dienst_ritten_reistijd(df_planning, df_afstand): # Deze gaat dus nog niet goed
         dienst_ritten = df_planning[df_planning['activiteit'] == 'dienst rit']
         dienst_ritten['starttijd'] = pd.to_datetime(dienst_ritten['starttijd'])
         dienst_ritten['eindtijd'] = pd.to_datetime(dienst_ritten['eindtijd'])
@@ -166,12 +160,113 @@ def run():
 
         return pd.DataFrame(invalid_rides)
 
-    invalid_rides_df = check_dienst_ritten_reistijd(df_planning, df_afstand)
+    invalid_rides_df = check_dienst_ritten_reistijd(df_absolute_planning, df_afstand)
     if not invalid_rides_df.empty:
-        st.warning("De volgende dienst ritten vallen buiten de reistijdslimieten:")
+        st.error("The following service trips fall outside the travel time limits:")
         st.dataframe(invalid_rides_df)
     else:
-        st.success("Alle dienst ritten vallen binnen de reistijdslimieten.")
+        st.success("All service trips are within the travel time limits.")
+
+
+    def sorteer_planning_per_omloop(df):
+        df = df.copy()
+        df['starttijd datum'] = pd.to_datetime(df['starttijd datum'])
+        df['eindtijd datum'] = pd.to_datetime(df['eindtijd datum'])
+        df = df.sort_values(by=['omloopnummer', 'starttijd datum', 'eindtijd datum']).reset_index(drop=True)
+        df['index'] = df.index
+        return df
+
+    df_planning = sorteer_planning_per_omloop(df_planning)
+    def controleer_verspringende_locaties_per_omloop_met_datum(df):
+        df = df.copy()
+        verspringingen = []
+        waarschuwing = False
+
+        df['startlocatie'] = df['startlocatie'].str.strip().str.lower()
+        df['eindlocatie'] = df['eindlocatie'].str.strip().str.lower()
+
+        for omloop in df['omloopnummer'].unique():
+            df_omloop = df[df['omloopnummer'] == omloop].sort_values(by='index')
+            vorige_rij = None
+
+            for _, huidige_rij in df_omloop.iterrows():
+                if vorige_rij is not None:
+                    mag_verspringen = (
+                        pd.to_datetime(huidige_rij['starttijd datum']).date() >
+                        pd.to_datetime(vorige_rij['starttijd datum']).date()
+                    )
+
+                    if (vorige_rij['eindlocatie'] != huidige_rij['startlocatie']) and not mag_verspringen:
+                        verspringingen.append({
+                            'omloopnummer': omloop,
+                            'index_huidige_rij': huidige_rij['index'],
+                            'vorige_eindlocatie': vorige_rij['eindlocatie'],
+                            'huidige_startlocatie': huidige_rij['startlocatie'],
+                            'starttijd_datum': huidige_rij['starttijd datum'],
+                            'vorige_starttijd_datum': vorige_rij['starttijd datum']
+                        })
+                        waarschuwing = True
+                vorige_rij = huidige_rij
+
+        return pd.DataFrame(verspringingen), waarschuwing
+    
+    verspringingen_df, waarschuwing = controleer_verspringende_locaties_per_omloop_met_datum(df_planning)
+
+    if waarschuwing:
+        st.warning("Buses teleport unexpectedly between locations")
+        st.dataframe(verspringingen_df)
+    else:
+        st.success("No teleportations detected. All transitions are logical")
+
+
+    # Functie om gemiste bussen te controleren
+    def check_missed_buses(df_tijden, df_planning):
+        """
+        Controleert of alle vertrektijden uit df_tijden aanwezig zijn in de geplande dienst ritten van df_planning.
+        Als een vertrektijd uit df_tijden ontbreekt in df_planning, wordt dit beschouwd als een gemiste rit.
+
+        Parameters:
+            df_tijden (pd.DataFrame): DataFrame met de verwachte dienstregeling (vertrektijden).
+            df_planning (pd.DataFrame): DataFrame met de geplande ritten.
+
+        Returns:
+            pd.DataFrame: DataFrame met gemiste ritten.
+        """
+        if df_tijden.empty or df_planning.empty:
+            return pd.DataFrame()  # Geen data beschikbaar, dus geen check nodig
+
+        # Filter alleen de dienst ritten uit df_planning
+        dienst_ritten = df_planning[df_planning['activiteit'] == 'dienst rit']
+
+    # Zet de vertrektijden uit beide bestanden in hetzelfde tijdformaat
+        df_tijden['vertrektijd'] = pd.to_datetime(df_tijden['vertrektijd'], errors="coerce").dt.strftime("%H:%M")
+        dienst_ritten['starttijd'] = pd.to_datetime(dienst_ritten['starttijd'], errors="coerce").dt.strftime("%H:%M")
+
+        # Controleer of alle vertrektijden uit df_tijden terugkomen als starttijd bij dienst ritten
+        missing_times = []
+        for _, row in df_tijden.iterrows():
+            if not ((dienst_ritten['starttijd'] == row['vertrektijd']) & 
+                    (dienst_ritten['startlocatie'] == row['startlocatie']) & 
+                    (dienst_ritten['eindlocatie'] == row['eindlocatie']) & 
+                    (dienst_ritten['buslijn'] == row['buslijn'])).any():
+                missing_times.append(row.to_dict())
+
+        # Maak een DataFrame met de gemiste bussen
+        missed_buses_df = pd.DataFrame(missing_times)
+
+        return missed_buses_df  # Retourneer de gemiste bussen
+
+    # Voer de controle uit
+    missed_stations_df = check_missed_buses(df_tijden, df_planning)
+
+
+
+    # Controleer of er gemiste stations zijn en toon foutmelding
+    if not missed_stations_df.empty:
+        st.error("Busstation are missed! See the table below for more information.")
+        st.dataframe(missed_stations_df)
+    else:
+        st.success("All the buses comply to the schedule!")
 
     def eindtijd_groter_starttijd(df):
         waarschuwing = False
@@ -209,44 +304,3 @@ def run():
         st.plotly_chart(fig)
     else:
         st.write("No data available for bus line")
-
-def sorteer_planning_per_omloop(df):
-    df = df.copy()
-    df['starttijd datum'] = pd.to_datetime(df['starttijd datum'])
-    df['eindtijd datum'] = pd.to_datetime(df['eindtijd datum'])
-    df = df.sort_values(by=['omloopnummer', 'starttijd datum', 'eindtijd datum']).reset_index(drop=True)
-    df['index'] = df.index
-    return df
-
-def controleer_verspringende_locaties_per_omloop_met_datum(df):
-    df = df.copy()
-    verspringingen = []
-    waarschuwing = False
-
-    df['startlocatie'] = df['startlocatie'].str.strip().str.lower()
-    df['eindlocatie'] = df['eindlocatie'].str.strip().str.lower()
-
-    for omloop in df['omloopnummer'].unique():
-        df_omloop = df[df['omloopnummer'] == omloop].sort_values(by='index')
-        vorige_rij = None
-
-        for _, huidige_rij in df_omloop.iterrows():
-            if vorige_rij is not None:
-                mag_verspringen = (
-                    pd.to_datetime(huidige_rij['starttijd datum']).date() >
-                    pd.to_datetime(vorige_rij['starttijd datum']).date()
-                )
-
-                if (vorige_rij['eindlocatie'] != huidige_rij['startlocatie']) and not mag_verspringen:
-                    verspringingen.append({
-                        'omloopnummer': omloop,
-                        'index_huidige_rij': huidige_rij['index'],
-                        'vorige_eindlocatie': vorige_rij['eindlocatie'],
-                        'huidige_startlocatie': huidige_rij['startlocatie'],
-                        'starttijd_datum': huidige_rij['starttijd datum'],
-                        'vorige_starttijd_datum': vorige_rij['starttijd datum']
-                    })
-                    waarschuwing = True
-            vorige_rij = huidige_rij
-
-    return pd.DataFrame(verspringingen), waarschuwing
