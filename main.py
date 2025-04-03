@@ -23,7 +23,7 @@ selection = st.sidebar.radio('Go to', list(pages.keys()))
 if selection == "Home":
     from New_HOme import run  
     run()
-elif selection == "Improved Scheduling":
+elif selection == "Improved Schedule":
     from ImprovedScheduling import run  # Ensure ImprovedScheduling.py has a run() function
     run()
 elif selection == "Uploaded Data":
