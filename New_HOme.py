@@ -18,31 +18,35 @@ def run():
     df_planning.rename(columns={'omloop nummer': 'omloopnummer'}, inplace=True)
     df_planning.rename(columns={'Unnamed: 0': 'index'}, inplace=True)
 
-   
     def bereken_absolute_tijd(df):
-        # Combineer tijd met datum voor julian date berekening
         df['starttijd'] = pd.to_datetime(df['starttijd datum'])
         df['eindtijd'] = pd.to_datetime(df['eindtijd datum'])
-
-        # Zet om naar juliandate
         df['starttijd_jd'] = df['starttijd'].apply(lambda x: x.to_julian_date())
         df['eindtijd_jd'] = df['eindtijd'].apply(lambda x: x.to_julian_date())
-
-        # Voeg kolommen in minuten toe (sinds begin van dataset)
         ref_start = df['starttijd_jd'].min()
         df['starttijd_min'] = (df['starttijd_jd'] - ref_start) * 24 * 60
         df['eindtijd_min'] = (df['eindtijd_jd'] - ref_start) * 24 * 60
-
-        # Bereken reistijd correct
         df['reistijd_min'] = df['eindtijd_min'] - df['starttijd_min']
-
-        # Sorteer correct op tijd en index
         df = df.sort_values(by=['starttijd_min', 'eindtijd_min', 'index']).reset_index(drop=True)
         return df
 
     df_absolute_planning = bereken_absolute_tijd(df_planning)
 
+    # === Materiaalritten analyse ===
+    materiaalritten = df_planning[df_planning['activiteit'] == 'materiaal rit']
+    aantal_materiaalritten = len(materiaalritten)
+    materiaalritten = materiaalritten.copy()
+    materiaalritten['rit_duur'] = materiaalritten['eindtijd datum'] - materiaalritten['starttijd datum']
+    totale_materiaal_duur = materiaalritten['rit_duur'].sum()
+    totale_materiaal_duur_uren = totale_materiaal_duur.total_seconds() / 3600
 
+    with st.expander("Materiaalritten overzicht"):
+        st.metric("Aantal materiaalritten", aantal_materiaalritten)
+        st.metric("Totale tijd (in uren)", f"{totale_materiaal_duur_uren:.2f} uur")
+
+    materiaal_per_omloop = materiaalritten.groupby('omloopnummer').size().reset_index(name='aantal_materiaalritten')
+    df_planning = df_planning.merge(materiaal_per_omloop, on='omloopnummer', how='left')
+    df_planning['aantal_materiaalritten'] = df_planning['aantal_materiaalritten'].fillna(0).astype(int)
 
     energieverbruik_per_km = st.number_input("Energy consumption per km (kWh)", min_value=0.1, value=2.5)
     max_verbruik = st.number_input("Maximal consumption per bus (kWh)", min_value=1.0, value=270.0)
@@ -102,9 +106,9 @@ def run():
         st.success("Everything is fine! No SOC violations.")
 
     omloop_selectie = st.selectbox("Select a route number to view corresponding SOC.", list(soc_per_omloop.keys()))
-
     fig, ax = plt.subplots()
-    ax.plot(range(len(soc_per_omloop[omloop_selectie])), soc_per_omloop[omloop_selectie], label=f'Theoretische SOC waarde - Omloop {omloop_selectie}', linestyle='-', marker='o')
+    ax.plot(range(len(soc_per_omloop[omloop_selectie])), soc_per_omloop[omloop_selectie],
+            label=f'Theoretische SOC waarde - Omloop {omloop_selectie}', linestyle='-', marker='o')
     ax.axhline(y=min_waarde_SOC, color='r', linestyle='--', label=f'Minimale SOC ({int(min_waarde_SOC)})')
     ax.axhline(y=max_verbruik, color='r', linestyle='--', label=f'Maximale SOC ({int(max_verbruik)})')
     ax.set_xlabel("Index")
@@ -142,22 +146,20 @@ def run():
     if not df_korte_oplaadtijden.empty:
         st.dataframe(df_korte_oplaadtijden)
 
-    def check_dienst_ritten_reistijd(df_planning, df_afstand): # Deze gaat dus nog niet goed
+    def check_dienst_ritten_reistijd(df_planning, df_afstand):
         dienst_ritten = df_planning[df_planning['activiteit'] == 'dienst rit']
-        dienst_ritten['starttijd'] = pd.to_datetime(dienst_ritten['starttijd'])
-        dienst_ritten['eindtijd'] = pd.to_datetime(dienst_ritten['eindtijd'])
         dienst_ritten['reistijd_min'] = (dienst_ritten['eindtijd'] - dienst_ritten['starttijd']).dt.total_seconds() / 60
-
         invalid_rides = []
         for _, row in dienst_ritten.iterrows():
-            match = df_afstand[(df_afstand['startlocatie'] == row['startlocatie']) &
-                               (df_afstand['eindlocatie'] == row['eindlocatie']) &
-                               (df_afstand['buslijn'] == row['buslijn'])]
+            match = df_afstand[
+                (df_afstand['startlocatie'] == row['startlocatie']) &
+                (df_afstand['eindlocatie'] == row['eindlocatie']) &
+                (df_afstand['buslijn'] == row['buslijn'])
+            ]
             if not match.empty:
                 min_time, max_time = match.iloc[0]['min reistijd in min'], match.iloc[0]['max reistijd in min']
                 if not (min_time <= row['reistijd_min'] <= max_time):
                     invalid_rides.append(row.to_dict())
-
         return pd.DataFrame(invalid_rides)
 
     invalid_rides_df = check_dienst_ritten_reistijd(df_absolute_planning, df_afstand)
@@ -166,7 +168,6 @@ def run():
         st.dataframe(invalid_rides_df)
     else:
         st.success("All service trips are within the travel time limits.")
-
 
     def sorteer_planning_per_omloop(df):
         df = df.copy()
@@ -177,25 +178,22 @@ def run():
         return df
 
     df_planning = sorteer_planning_per_omloop(df_planning)
+
     def controleer_verspringende_locaties_per_omloop_met_datum(df):
         df = df.copy()
         verspringingen = []
         waarschuwing = False
-
         df['startlocatie'] = df['startlocatie'].str.strip().str.lower()
         df['eindlocatie'] = df['eindlocatie'].str.strip().str.lower()
-
         for omloop in df['omloopnummer'].unique():
             df_omloop = df[df['omloopnummer'] == omloop].sort_values(by='index')
             vorige_rij = None
-
             for _, huidige_rij in df_omloop.iterrows():
                 if vorige_rij is not None:
                     mag_verspringen = (
                         pd.to_datetime(huidige_rij['starttijd datum']).date() >
                         pd.to_datetime(vorige_rij['starttijd datum']).date()
                     )
-
                     if (vorige_rij['eindlocatie'] != huidige_rij['startlocatie']) and not mag_verspringen:
                         verspringingen.append({
                             'omloopnummer': omloop,
@@ -207,61 +205,31 @@ def run():
                         })
                         waarschuwing = True
                 vorige_rij = huidige_rij
-
         return pd.DataFrame(verspringingen), waarschuwing
-    
-    verspringingen_df, waarschuwing = controleer_verspringende_locaties_per_omloop_met_datum(df_planning)
 
+    verspringingen_df, waarschuwing = controleer_verspringende_locaties_per_omloop_met_datum(df_planning)
     if waarschuwing:
         st.warning("Buses teleport unexpectedly between locations")
         st.dataframe(verspringingen_df)
     else:
         st.success("No teleportations detected. All transitions are logical")
 
-
-    # Functie om gemiste bussen te controleren
     def check_missed_buses(df_tijden, df_planning):
-        """
-        Controleert of alle vertrektijden uit df_tijden aanwezig zijn in de geplande dienst ritten van df_planning.
-        Als een vertrektijd uit df_tijden ontbreekt in df_planning, wordt dit beschouwd als een gemiste rit.
-
-        Parameters:
-            df_tijden (pd.DataFrame): DataFrame met de verwachte dienstregeling (vertrektijden).
-            df_planning (pd.DataFrame): DataFrame met de geplande ritten.
-
-        Returns:
-            pd.DataFrame: DataFrame met gemiste ritten.
-        """
         if df_tijden.empty or df_planning.empty:
-            return pd.DataFrame()  # Geen data beschikbaar, dus geen check nodig
-
-        # Filter alleen de dienst ritten uit df_planning
+            return pd.DataFrame()
         dienst_ritten = df_planning[df_planning['activiteit'] == 'dienst rit']
-
-    # Zet de vertrektijden uit beide bestanden in hetzelfde tijdformaat
         df_tijden['vertrektijd'] = pd.to_datetime(df_tijden['vertrektijd'], errors="coerce").dt.strftime("%H:%M")
         dienst_ritten['starttijd'] = pd.to_datetime(dienst_ritten['starttijd'], errors="coerce").dt.strftime("%H:%M")
-
-        # Controleer of alle vertrektijden uit df_tijden terugkomen als starttijd bij dienst ritten
         missing_times = []
         for _, row in df_tijden.iterrows():
-            if not ((dienst_ritten['starttijd'] == row['vertrektijd']) & 
-                    (dienst_ritten['startlocatie'] == row['startlocatie']) & 
-                    (dienst_ritten['eindlocatie'] == row['eindlocatie']) & 
+            if not ((dienst_ritten['starttijd'] == row['vertrektijd']) &
+                    (dienst_ritten['startlocatie'] == row['startlocatie']) &
+                    (dienst_ritten['eindlocatie'] == row['eindlocatie']) &
                     (dienst_ritten['buslijn'] == row['buslijn'])).any():
                 missing_times.append(row.to_dict())
+        return pd.DataFrame(missing_times)
 
-        # Maak een DataFrame met de gemiste bussen
-        missed_buses_df = pd.DataFrame(missing_times)
-
-        return missed_buses_df  # Retourneer de gemiste bussen
-
-    # Voer de controle uit
     missed_stations_df = check_missed_buses(df_tijden, df_planning)
-
-
-
-    # Controleer of er gemiste stations zijn en toon foutmelding
     if not missed_stations_df.empty:
         st.error("Busstation are missed! See the table below for more information.")
         st.dataframe(missed_stations_df)
