@@ -77,16 +77,16 @@ def run():
             totaal_impr = 0.0
 
         # Toon in één overzicht
-        with st.expander("Materiaalritten vergelijking (Original vs Improved)"):
+        with st.expander("Repositioning Trips comparison (Original vs Improved)"):
             col1, col2 = st.columns(2)
             with col1:
                 st.subheader("Original planning")
-                st.metric("Aantal materiaalritten", aantal_orig)
-                st.metric("Totale tijd (in uren)", f"{totaal_orig:.2f}")
+                st.metric("Number of Repositioning Trips", aantal_orig)
+                st.metric("Total time (in hours)", f"{totaal_orig:.2f}")
             with col2:
                 st.subheader("Improved planning")
-                st.metric("Aantal materiaalritten", aantal_impr)
-                st.metric("Totale tijd (in uren)", f"{totaal_impr:.2f}")
+                st.metric("Number of Repositioning Trips", aantal_impr)
+                st.metric("Total time (in hours)", f"{totaal_impr:.2f}")
     else:
         st.error("No data available for original planning")
 
