@@ -32,22 +32,6 @@ def run():
 
     df_absolute_planning = bereken_absolute_tijd(df_planning)
 
-    # === Materiaalritten analyse ===
-    materiaalritten = df_planning[df_planning['activiteit'] == 'materiaal rit']
-    aantal_materiaalritten = len(materiaalritten)
-    materiaalritten = materiaalritten.copy()
-    materiaalritten['rit_duur'] = materiaalritten['eindtijd datum'] - materiaalritten['starttijd datum']
-    totale_materiaal_duur = materiaalritten['rit_duur'].sum()
-    totale_materiaal_duur_uren = totale_materiaal_duur.total_seconds() / 3600
-
-    with st.expander("Repositioning trips summary"):
-        st.metric("Number of Repositioning trips", aantal_materiaalritten)
-        st.metric("Total Time (in hours)", f"{totale_materiaal_duur_uren:.2f} hours")
-
-    materiaal_per_omloop = materiaalritten.groupby('omloopnummer').size().reset_index(name='aantal_materiaalritten')
-    df_planning = df_planning.merge(materiaal_per_omloop, on='omloopnummer', how='left')
-    df_planning['aantal_materiaalritten'] = df_planning['aantal_materiaalritten'].fillna(0).astype(int)
-
     energieverbruik_per_km = st.number_input("Energy consumption per km (kWh)", min_value=0.1, value=2.5)
     max_verbruik = st.number_input("Maximal consumption per bus (kWh)", min_value=1.0, value=270.0)
     min_waarde_SOC = st.number_input("Minimal SOC-value", min_value=1.0, value=30.0)
