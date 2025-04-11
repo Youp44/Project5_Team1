@@ -40,9 +40,9 @@ def run():
     totale_materiaal_duur = materiaalritten['rit_duur'].sum()
     totale_materiaal_duur_uren = totale_materiaal_duur.total_seconds() / 3600
 
-    with st.expander("Materiaalritten overzicht"):
-        st.metric("Aantal materiaalritten", aantal_materiaalritten)
-        st.metric("Totale tijd (in uren)", f"{totale_materiaal_duur_uren:.2f} uur")
+    with st.expander("Repositioning trips summary"):
+        st.metric("Number of Repositioning trips", aantal_materiaalritten)
+        st.metric("Total Time (in hours)", f"{totale_materiaal_duur_uren:.2f} hours")
 
     materiaal_per_omloop = materiaalritten.groupby('omloopnummer').size().reset_index(name='aantal_materiaalritten')
     df_planning = df_planning.merge(materiaal_per_omloop, on='omloopnummer', how='left')
