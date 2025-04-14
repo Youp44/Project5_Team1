@@ -39,21 +39,21 @@ def run():
         plot_gantt_chart(improved_scheduling, 'Improved')
     else:
         st.error("No data available for improved planning")
-
+    df_planning = st.session_state.df_planning
     # Toon originele planning als beschikbaar
     if 'df_planning' in st.session_state and not st.session_state.df_planning.empty:
-        df_original = pd.read_excel('omloopplanning.xlsx')
+        
 
         # Zorg dat kolomnaam juist is voor Gantt-plot
-        if 'omloopnummer' in df_original.columns:
-            df_original.rename(columns={'omloopnummer': 'omloop nummer'}, inplace=True)
-        if 'Unnamed: 0' in df_original.columns:
-            df_original.rename(columns={'Unnamed: 0': 'index'}, inplace=True)
+        if 'omloopnummer' in df_planning.columns:
+            df_planning.rename(columns={'omloopnummer': 'omloop nummer'}, inplace=True)
+        if 'Unnamed: 0' in df_planning.columns:
+            df_planning.rename(columns={'Unnamed: 0': 'index'}, inplace=True)
 
-        plot_gantt_chart(df_original, 'Original planning')
+        plot_gantt_chart(df_planning, 'Original planning')
 
         # === Materiaalritten analyse (original) ===
-        materiaalritten_orig = df_original[df_original['activiteit'] == 'materiaal rit']
+        materiaalritten_orig = df_planning[df_planning['activiteit'] == 'materiaal rit']
         aantal_orig = len(materiaalritten_orig)
         if aantal_orig > 0:
             materiaalritten_orig = materiaalritten_orig.copy()
